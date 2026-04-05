@@ -43,7 +43,7 @@ function AppStoreIcon() {
 
 const storeBadges = [
   {
-    label: 'Google',
+    label: 'Play Store',
     icon: <GoogleIcon />,
   },
   {
@@ -138,7 +138,7 @@ function LandingPage() {
           <div className="footer-meta">
             <div className="social-links" aria-label="Social links">
               <a
-                className="footer-link"
+                className="footer-link social-link"
                 href="https://x.com/softmaxx"
                 target="_blank"
                 rel="noreferrer"
@@ -146,7 +146,7 @@ function LandingPage() {
                 X
               </a>
               <a
-                className="footer-link"
+                className="footer-link social-link"
                 href="https://instagram.com/softmaxx"
                 target="_blank"
                 rel="noreferrer"

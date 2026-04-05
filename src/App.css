@@ -286,6 +286,16 @@
   color: #f0d080;
 }
 
+.social-link {
+  color: #f0d080;
+  font-size: 12px;
+  letter-spacing: 0.16em;
+}
+
+.social-link:hover {
+  color: #f4dda1;
+}
+
 .contact-link {
   font-size: 10px;
   letter-spacing: 0.14em;
