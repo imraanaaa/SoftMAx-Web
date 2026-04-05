@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { CommentIcon, HeartIcon, ShareIcon } from '../components/FeedIcons.jsx'
 import { fetchPostById, formatPostTimestamp } from '../lib/posts.js'
-import { buildOfficialPostUrl, shareOfficialPost } from '../lib/share.js'
+import { buildOfficialPostUrl, formatOfficialPostUrl, shareOfficialPost } from '../lib/share.js'
 import { hasSupabaseConfig } from '../lib/supabase.js'
 
 function PageMessage({ title, message }) {
@@ -87,12 +88,13 @@ function PostDetailPage() {
     () => buildOfficialPostUrl(post?.username || username, post?.id || postId),
     [post?.id, post?.username, postId, username],
   )
+  const shareUrlLabel = formatOfficialPostUrl(shareUrl)
 
   async function handleShare() {
     const result = await shareOfficialPost({
       username: post?.username || username,
       postId: post?.id || postId,
-      title: post?.username ? `${post.username}'s post on SOFTMAXX` : 'SOFTMAXX post',
+      title: post?.displayName ? `${post.displayName} on SOFTMAXX` : 'SOFTMAXX post',
       text: post?.content || 'View this SOFTMAXX post.',
     })
 
@@ -117,6 +119,7 @@ function PostDetailPage() {
   }
 
   const displayUsername = post?.username || username || 'unknown'
+  const displayName = post?.displayName || displayUsername
   const displayContent = post?.content || 'This post does not have any text yet.'
   const displayTimestamp = formatPostTimestamp(post?.timestamp)
 
@@ -127,26 +130,36 @@ function PostDetailPage() {
           Back to SOFTMAXX
         </Link>
 
-        <article className="post-card" aria-labelledby="post-author">
+        <article className="community-card post-detail-card" aria-labelledby="post-author">
           <header className="post-header">
-            <div>
-              <p className="post-kicker">Shared post</p>
-              <h1 className="post-username" id="post-author">
-                @{displayUsername}
-              </h1>
+            <div className="post-detail-author">
+              <div className="profile-avatar profile-avatar--large">
+                {post?.avatarUrl ? (
+                  <img src={post.avatarUrl} alt={displayName} />
+                ) : (
+                  <span>{post?.initials || displayName.charAt(0).toUpperCase()}</span>
+                )}
+              </div>
+              <div>
+                <p className="post-kicker">Shared post</p>
+                <h1 className="post-detail-display-name" id="post-author">
+                  {displayName}
+                </h1>
+                <p className="post-feed-handle">@{displayUsername}</p>
+              </div>
             </div>
             <time className="post-time" dateTime={post?.timestamp ?? undefined}>
               {displayTimestamp}
             </time>
           </header>
 
-          <p className={`post-content${post?.content ? '' : ' post-content--empty'}`}>
+          <p className={`post-feed-content${post?.content ? '' : ' post-content--empty'}`}>
             {displayContent}
           </p>
 
           {post?.imageUrl ? (
             <img
-              className="post-image"
+              className="post-feed-image"
               src={post.imageUrl}
               alt={`Post by ${displayUsername}`}
               loading="lazy"
@@ -154,12 +167,23 @@ function PostDetailPage() {
           ) : null}
 
           <footer className="post-actions">
-            <button className="share-btn" type="button" onClick={handleShare}>
-              Share Post
-            </button>
+            <div className="post-stats-row">
+              <div className="post-stat">
+                <CommentIcon className="feed-icon" />
+                <span>{post?.commentsCount ?? 0}</span>
+              </div>
+              <div className="post-stat">
+                <HeartIcon className="feed-icon" />
+                <span>{post?.likesCount ?? 0}</span>
+              </div>
+              <button className="post-stat post-stat--button" type="button" onClick={handleShare}>
+                <ShareIcon className="feed-icon" />
+                <span>Share</span>
+              </button>
+            </div>
             {shareUrl ? (
               <a className="share-link" href={shareUrl}>
-                {shareUrl}
+                {shareUrlLabel}
               </a>
             ) : (
               <span className="post-state-copy">Share link unavailable</span>

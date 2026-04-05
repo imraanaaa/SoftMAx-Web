@@ -25,6 +25,14 @@ export function buildOfficialPostUrl(username, postId) {
   return `${OFFICIAL_APP_ORIGIN}/${safeUsername}/${safePostId}`
 }
 
+export function formatOfficialPostUrl(url) {
+  if (!url) {
+    return ''
+  }
+
+  return url.replace(/^https?:\/\//, '')
+}
+
 export async function shareOfficialPost({ username, postId, title, text }) {
   const url = buildOfficialPostUrl(username, postId)
 
