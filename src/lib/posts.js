@@ -90,6 +90,50 @@ export async function fetchPostById(postId, fallbackUsername = '') {
   }
 }
 
+export async function fetchPosts() {
+  if (!supabase) {
+    return {
+      data: [],
+      error: new Error('Supabase is not configured.'),
+    }
+  }
+
+  const queries = [
+    supabase.from('posts').select('*').order('created_at', { ascending: false }),
+    supabase.from('posts').select('*').order('createdAt', { ascending: false }),
+    supabase.from('posts').select('*'),
+  ]
+
+  for (const query of queries) {
+    const { data, error } = await query
+
+    if (error) {
+      continue
+    }
+
+    const normalizedPosts = (data ?? [])
+      .map((record) => normalizePostRecord(record))
+      .filter(Boolean)
+
+    normalizedPosts.sort((leftPost, rightPost) => {
+      const leftTime = leftPost?.timestamp ? new Date(leftPost.timestamp).getTime() : 0
+      const rightTime = rightPost?.timestamp ? new Date(rightPost.timestamp).getTime() : 0
+
+      return rightTime - leftTime
+    })
+
+    return {
+      data: normalizedPosts,
+      error: null,
+    }
+  }
+
+  return {
+    data: [],
+    error: new Error('Unable to fetch posts from Supabase.'),
+  }
+}
+
 export function formatPostTimestamp(timestamp) {
   if (!timestamp) {
     return 'Timestamp unavailable'

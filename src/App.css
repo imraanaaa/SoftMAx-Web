@@ -315,6 +315,20 @@
   gap: 18px;
 }
 
+.posts-page-header {
+  display: grid;
+  gap: 16px;
+}
+
+.posts-title {
+  margin: 8px 0 0;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(3rem, 12vw, 4.75rem);
+  line-height: 0.95;
+  letter-spacing: 0.02em;
+  color: #f0e8dc;
+}
+
 .back-link {
   color: #cdb188;
   font-size: 11px;
@@ -336,6 +350,16 @@
   background: rgba(255, 255, 255, 0.035);
   backdrop-filter: blur(28px);
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.22);
+}
+
+.post-card--feed {
+  height: 100%;
+  align-content: start;
+}
+
+.posts-grid {
+  display: grid;
+  gap: 18px;
 }
 
 .post-header {
@@ -361,6 +385,10 @@
   line-height: 0.95;
   letter-spacing: 0.02em;
   color: #f0e8dc;
+}
+
+.post-username--card {
+  font-size: clamp(2rem, 7vw, 3rem);
 }
 
 .post-time,
@@ -397,6 +425,12 @@
   gap: 14px;
 }
 
+.post-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
 .share-btn {
   width: fit-content;
   padding: 14px 22px;
@@ -413,6 +447,12 @@
     transform 0.3s ease,
     border-color 0.3s ease,
     background-color 0.3s ease;
+}
+
+.share-btn--link {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
 }
 
 .share-btn:hover {
@@ -438,6 +478,10 @@
   margin: 0;
   color: #f0d080;
   font-size: 12px;
+}
+
+.share-message--page {
+  text-align: center;
 }
 
 .sr-only {
@@ -505,6 +549,15 @@
     flex-direction: row;
     justify-content: space-between;
     align-items: flex-start;
+  }
+
+  .posts-page-header {
+    grid-template-columns: 1fr auto;
+    align-items: end;
+  }
+
+  .posts-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
