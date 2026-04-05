@@ -1,9 +1,21 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { CommentIcon, HeartIcon, ShareIcon } from '../components/FeedIcons.jsx'
+import { CommentIcon, GoldBadgeIcon, HeartIcon, ShareIcon } from '../components/FeedIcons.jsx'
 import { fetchPostById, formatPostTimestamp } from '../lib/posts.js'
 import { buildOfficialPostUrl, formatOfficialPostUrl, shareOfficialPost } from '../lib/share.js'
 import { hasSupabaseConfig } from '../lib/supabase.js'
+
+function isOfficialAccount(account) {
+  return String(account?.username ?? '').trim().toLowerCase() === 'softmaxx'
+}
+
+function GoldBadge({ title = 'Official SOFTMAXX account' }) {
+  return (
+    <span className="gold-badge" aria-label={title} title={title}>
+      <GoldBadgeIcon className="gold-badge-icon" />
+    </span>
+  )
+}
 
 function PageMessage({ title, message }) {
   return (
@@ -122,6 +134,7 @@ function PostDetailPage() {
   const displayName = post?.displayName || displayUsername
   const displayContent = post?.content || 'This post does not have any text yet.'
   const displayTimestamp = formatPostTimestamp(post?.timestamp)
+  const isOfficial = isOfficialAccount(post)
 
   return (
     <main className="page-shell page-shell--post">
@@ -145,7 +158,9 @@ function PostDetailPage() {
                 <h1 className="post-detail-display-name" id="post-author">
                   {displayName}
                 </h1>
-                <p className="post-feed-handle">@{displayUsername}</p>
+                <p className="post-feed-handle">
+                  @{displayUsername} {isOfficial ? <GoldBadge /> : null}
+                </p>
               </div>
             </div>
             <time className="post-time" dateTime={post?.timestamp ?? undefined}>

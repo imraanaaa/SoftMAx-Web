@@ -114,3 +114,61 @@ export function StarIcon(props) {
     </IconBase>
   )
 }
+
+export function XLogoIcon({ className = '' }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      xmlns="http://www.w3.org/2000/svg"
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <path d="M17.78 3h2.98l-6.52 7.45L22 21h-6.08l-4.76-6.23L5.7 21H2.7l6.97-7.97L2 3h6.23l4.3 5.68L17.78 3Zm-1.04 16.2h1.65L7.33 4.7H5.55Z" />
+    </svg>
+  )
+}
+
+export function InstagramLogoIcon({ className = '' }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="3.5" y="3.5" width="17" height="17" rx="5" />
+      <circle cx="12" cy="12" r="3.9" />
+      <circle cx="17.2" cy="6.8" r="0.8" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
+
+export function GoldBadgeIcon({ className = '' }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <path
+        fill="currentColor"
+        d="m12 1.9 2.25 1.3 2.59-.42 1.08 2.38 2.38 1.08-.42 2.59L22.1 12l-1.3 2.25.42 2.59-2.38 1.08-1.08 2.38-2.59-.42L12 22.1l-2.25-1.3-2.59.42-1.08-2.38-2.38-1.08.42-2.59L1.9 12l1.3-2.25-.42-2.59 2.38-1.08 1.08-2.38 2.59.42Z"
+      />
+      <path
+        d="m8.4 12.2 2.2 2.15 5.05-4.95"
+        fill="none"
+        stroke="#080604"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}

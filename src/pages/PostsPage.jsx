@@ -4,15 +4,12 @@ import { Link } from 'react-router-dom'
 import {
   BellIcon,
   CommentIcon,
-  GridIcon,
+  GoldBadgeIcon,
   HeartIcon,
-  HomeIcon,
   ImageIcon,
-  MessageIcon,
   RankIcon,
   SearchIcon,
   ShareIcon,
-  StarIcon,
 } from '../components/FeedIcons.jsx'
 import { authPagePath, hasClerk } from '../lib/auth.js'
 import {
@@ -30,6 +27,19 @@ import {
 } from '../lib/share.js'
 import { createClerkSupabaseClient, hasSupabaseConfig } from '../lib/supabase.js'
 
+const FEATURED_SOFTMAXX_ACCOUNT = {
+  username: 'softmaxx',
+  displayName: 'SOFTMAXX',
+  initials: 'S',
+  avatarUrl: '',
+  bio: 'Official SOFTMAXX account',
+  postId: null,
+}
+
+function isOfficialAccount(account) {
+  return String(account?.username ?? '').trim().toLowerCase() === 'softmaxx'
+}
+
 function ProfileAvatar({ avatarUrl, initials, alt, large = false }) {
   return (
     <div className={`profile-avatar${large ? ' profile-avatar--large' : ''}`}>
@@ -38,12 +48,52 @@ function ProfileAvatar({ avatarUrl, initials, alt, large = false }) {
   )
 }
 
-function FeedHeaderActions({
-  isSignedIn,
-  notificationCount,
-  onNotificationsClick,
-  viewerProfile,
-}) {
+function GoldBadge({ title = 'Official SOFTMAXX account' }) {
+  return (
+    <span className="gold-badge" aria-label={title} title={title}>
+      <GoldBadgeIcon className="gold-badge-icon" />
+    </span>
+  )
+}
+
+function createSuggestedAccounts(posts, viewerProfile) {
+  const suggestions = [
+    {
+      ...FEATURED_SOFTMAXX_ACCOUNT,
+      isOfficial: true,
+    },
+  ]
+  const seenUsernames = new Set([FEATURED_SOFTMAXX_ACCOUNT.username])
+  const viewerUsername = String(viewerProfile?.username ?? '').trim().toLowerCase()
+
+  for (const post of posts) {
+    const normalizedUsername = String(post?.username ?? '').trim().toLowerCase()
+
+    if (!normalizedUsername || normalizedUsername === viewerUsername || seenUsernames.has(normalizedUsername)) {
+      continue
+    }
+
+    suggestions.push({
+      username: post.username,
+      displayName: post.displayName || post.username,
+      initials: post.initials,
+      avatarUrl: post.avatarUrl,
+      bio: isOfficialAccount(post) ? 'Official SOFTMAXX account' : 'Community account',
+      postId: post.id,
+      isOfficial: isOfficialAccount(post),
+    })
+
+    seenUsernames.add(normalizedUsername)
+
+    if (suggestions.length >= 5) {
+      break
+    }
+  }
+
+  return suggestions
+}
+
+function FeedHeaderActions({ isSignedIn, notificationCount, onNotificationsClick, viewerProfile }) {
   if (!hasClerk) {
     return <p className="header-auth-copy">Clerk is not configured in this environment.</p>
   }
@@ -54,7 +104,10 @@ function FeedHeaderActions({
         <Link className="feed-auth-button" to={authPagePath}>
           Log In
         </Link>
-        <Link className="feed-auth-button feed-auth-button--primary" to={`${authPagePath}?mode=sign-up`}>
+        <Link
+          className="feed-auth-button feed-auth-button--primary"
+          to={`${authPagePath}?mode=sign-up`}
+        >
           Sign Up
         </Link>
       </div>
@@ -70,7 +123,9 @@ function FeedHeaderActions({
         aria-label="Notifications"
       >
         <BellIcon className="feed-icon" />
-        {notificationCount > 0 ? <span className="notification-badge">{notificationCount}</span> : null}
+        {notificationCount > 0 ? (
+          <span className="notification-badge">{notificationCount}</span>
+        ) : null}
       </button>
       <Link className="header-profile-link" to={authPagePath} aria-label="Account">
         <ProfileAvatar
@@ -83,36 +138,14 @@ function FeedHeaderActions({
   )
 }
 
-function BottomNav() {
-  return (
-    <nav className="bottom-nav" aria-label="Primary">
-      <Link className="bottom-nav-link" to="/">
-        <HomeIcon className="feed-icon" />
-        <span>Today</span>
-      </Link>
-      <Link className="bottom-nav-link bottom-nav-link--active" to="/posts">
-        <GridIcon className="feed-icon" />
-        <span>Feed</span>
-      </Link>
-      <button className="bottom-nav-link" type="button" disabled>
-        <MessageIcon className="feed-icon" />
-        <span>DMs</span>
-      </button>
-      <button className="bottom-nav-link" type="button" disabled>
-        <StarIcon className="feed-icon" />
-        <span>Ranks</span>
-      </button>
-    </nav>
-  )
-}
-
 function FeedPostCard({ post, onShare }) {
   const postUrl = buildOfficialPostUrl(post.username, post.id)
   const postUrlLabel = formatOfficialPostUrl(postUrl)
   const postLink = buildOfficialPostPath(post.username, post.id) || '/posts'
+  const isOfficial = isOfficialAccount(post)
 
   return (
-    <article className="community-card post-feed-card">
+    <article className={`community-card post-feed-card${isOfficial ? ' post-feed-card--official' : ''}`}>
       <header className="post-feed-header">
         <ProfileAvatar
           avatarUrl={post.avatarUrl}
@@ -122,10 +155,10 @@ function FeedPostCard({ post, onShare }) {
         <div className="post-feed-meta">
           <div className="post-feed-title-row">
             <h2 className="post-feed-display-name">{post.displayName || 'Unknown user'}</h2>
-            {post.isVerified ? <span className="verified-dot" aria-label="Verified" /> : null}
+            {isOfficial ? <GoldBadge /> : post.isVerified ? <span className="verified-dot" aria-label="Verified" /> : null}
           </div>
           <p className="post-feed-handle">
-            @{post.username || 'unknown'} <span className="feed-meta-separator">/</span>{' '}
+            @{post.username || 'unknown'} <span className="feed-meta-separator">·</span>{' '}
             {formatRelativePostTimestamp(post.timestamp)}
           </p>
         </div>
@@ -171,6 +204,61 @@ function FeedPostCard({ post, onShare }) {
         )}
       </footer>
     </article>
+  )
+}
+
+function SuggestedAccountRow({ account }) {
+  const targetPath =
+    account.postId && account.username
+      ? buildOfficialPostPath(account.username, account.postId) || '/posts'
+      : '/posts'
+
+  return (
+    <article className="suggested-account-row">
+      <div className="suggested-account-main">
+        <ProfileAvatar
+          avatarUrl={account.avatarUrl}
+          initials={account.initials}
+          alt={account.displayName || account.username || 'SOFTMAXX account'}
+        />
+        <div className="suggested-account-meta">
+          <div className="suggested-account-name-row">
+            <Link className="suggested-account-name" to={targetPath}>
+              {account.displayName || account.username}
+            </Link>
+            {account.isOfficial ? <GoldBadge /> : null}
+          </div>
+          <p className="suggested-account-handle">@{account.username}</p>
+          {account.bio ? <p className="suggested-account-bio">{account.bio}</p> : null}
+        </div>
+      </div>
+      <Link className="suggested-account-button" to={targetPath}>
+        View
+      </Link>
+    </article>
+  )
+}
+
+function SuggestedAccountsRail({ posts, viewerProfile }) {
+  const suggestedAccounts = useMemo(
+    () => createSuggestedAccounts(posts, viewerProfile),
+    [posts, viewerProfile],
+  )
+
+  return (
+    <aside className="community-sidebar">
+      <section className="sidebar-card">
+        <p className="sidebar-title">Accounts To Follow</p>
+        <div className="suggested-account-list">
+          {suggestedAccounts.map((account) => (
+            <SuggestedAccountRow
+              key={`${account.username}-${account.postId ?? 'featured'}`}
+              account={account}
+            />
+          ))}
+        </div>
+      </section>
+    </aside>
   )
 }
 
@@ -319,150 +407,157 @@ function PostsPageContent({
   return (
     <main className="community-shell">
       <section className="community-frame">
-        <header className="community-header">
-          <div>
-            <p className="community-title">Community</p>
-            <p className="community-subtitle">Public posts from SOFTMAXX</p>
-          </div>
+        <div className="community-page-grid">
+          <div className="community-main-column">
+            <header className="community-header">
+              <div>
+                <p className="community-title">Community</p>
+                <p className="community-subtitle">Public posts from SOFTMAXX</p>
+              </div>
 
-          <div className="community-header-actions">
-            <FeedHeaderActions
-              isSignedIn={isSignedIn}
-              notificationCount={notificationCount}
-              onNotificationsClick={handleNotificationsClick}
-              viewerProfile={viewerProfile}
-            />
-          </div>
-        </header>
-
-        <section className="community-search-row">
-          <label className="community-search" htmlFor="usernameSearch">
-            <SearchIcon className="feed-icon" />
-            <input
-              id="usernameSearch"
-              type="search"
-              placeholder="Search username"
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-            />
-          </label>
-        </section>
-
-        <section className="community-tabs" aria-label="Feed tabs">
-          <button className="community-tab community-tab--active" type="button">
-            For You
-          </button>
-          <button className="community-tab" type="button" disabled>
-            Following
-          </button>
-        </section>
-
-        <section className="community-feed">
-          <form className="community-card composer-card" onSubmit={handleSubmitPost}>
-            <div className="composer-top">
-              <ProfileAvatar
-                avatarUrl={viewerProfile?.avatarUrl}
-                initials={viewerProfile?.initials || viewerName}
-                alt={viewerName}
-                large
-              />
-              <div className="composer-main">
-                <textarea
-                  className="composer-textarea"
-                  placeholder="Share your progress, thoughts, wins..."
-                  value={draftContent}
-                  onChange={(event) => setDraftContent(event.target.value)}
-                  disabled={composerDisabled}
-                  rows={4}
+              <div className="community-header-actions">
+                <FeedHeaderActions
+                  isSignedIn={isSignedIn}
+                  notificationCount={notificationCount}
+                  onNotificationsClick={handleNotificationsClick}
+                  viewerProfile={viewerProfile}
                 />
+              </div>
+            </header>
 
-                {showImageField ? (
-                  <input
-                    className="composer-image-input"
-                    type="url"
-                    placeholder="Paste image URL"
-                    value={draftImageUrl}
-                    onChange={(event) => setDraftImageUrl(event.target.value)}
-                    disabled={composerDisabled}
+            <section className="community-search-row">
+              <label className="community-search" htmlFor="usernameSearch">
+                <SearchIcon className="feed-icon" />
+                <input
+                  id="usernameSearch"
+                  type="search"
+                  placeholder="Search username"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                />
+              </label>
+            </section>
+
+            <section className="community-tabs" aria-label="Feed tabs">
+              <button className="community-tab community-tab--active" type="button">
+                For You
+              </button>
+              <button className="community-tab" type="button" disabled>
+                Following
+              </button>
+            </section>
+
+            <section className="community-feed">
+              <form className="community-card composer-card" onSubmit={handleSubmitPost}>
+                <div className="composer-top">
+                  <ProfileAvatar
+                    avatarUrl={viewerProfile?.avatarUrl}
+                    initials={viewerProfile?.initials || viewerName}
+                    alt={viewerName}
+                    large
                   />
+                  <div className="composer-main">
+                    <textarea
+                      className="composer-textarea"
+                      placeholder="Share your progress, thoughts, wins..."
+                      value={draftContent}
+                      onChange={(event) => setDraftContent(event.target.value)}
+                      disabled={composerDisabled}
+                      rows={4}
+                    />
+
+                    {showImageField ? (
+                      <input
+                        className="composer-image-input"
+                        type="url"
+                        placeholder="Paste image URL"
+                        value={draftImageUrl}
+                        onChange={(event) => setDraftImageUrl(event.target.value)}
+                        disabled={composerDisabled}
+                      />
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="composer-actions">
+                  <button
+                    className="photo-button"
+                    type="button"
+                    onClick={() => setShowImageField((value) => !value)}
+                    disabled={composerDisabled}
+                  >
+                    <ImageIcon className="feed-icon" />
+                    <span>Photo</span>
+                  </button>
+                  <button className="post-submit-button" type="submit" disabled={composerDisabled}>
+                    {isSubmitting ? 'Posting...' : 'Post'}
+                  </button>
+                </div>
+
+                {!isSignedIn && hasClerk ? (
+                  <div className="composer-auth-row">
+                    <Link className="feed-auth-button" to={authPagePath}>
+                      Log In
+                    </Link>
+                    <Link
+                      className="feed-auth-button feed-auth-button--primary"
+                      to={`${authPagePath}?mode=sign-up`}
+                    >
+                      Sign Up
+                    </Link>
+                  </div>
                 ) : null}
-              </div>
-            </div>
 
-            <div className="composer-actions">
-              <button
-                className="photo-button"
-                type="button"
-                onClick={() => setShowImageField((value) => !value)}
-                disabled={composerDisabled}
-              >
-                <ImageIcon className="feed-icon" />
-                <span>Photo</span>
-              </button>
-              <button className="post-submit-button" type="submit" disabled={composerDisabled}>
-                {isSubmitting ? 'Posting...' : 'Post'}
-              </button>
-            </div>
+                {authUnavailable ? (
+                  <p className="feed-info-message">
+                    Clerk is not configured here yet, so posting is disabled in this environment.
+                  </p>
+                ) : null}
 
-            {!isSignedIn && hasClerk ? (
-              <div className="composer-auth-row">
-                <Link className="feed-auth-button" to={authPagePath}>
-                  Log In
-                </Link>
-                <Link className="feed-auth-button feed-auth-button--primary" to={`${authPagePath}?mode=sign-up`}>
-                  Sign Up
-                </Link>
-              </div>
-            ) : null}
+                {composerMessage ? <p className="feed-info-message">{composerMessage}</p> : null}
+              </form>
 
-            {authUnavailable ? (
-              <p className="feed-info-message">
-                Clerk is not configured here yet, so posting is disabled in this environment.
-              </p>
-            ) : null}
+              {notificationMessage ? <p className="feed-info-message">{notificationMessage}</p> : null}
+              {shareMessage ? <p className="feed-info-message">{shareMessage}</p> : null}
 
-            {composerMessage ? <p className="feed-info-message">{composerMessage}</p> : null}
-          </form>
+              {isLoading ? (
+                <div className="community-card empty-state-card">
+                  <p className="empty-state-title">Loading posts</p>
+                  <p className="empty-state-copy">Fetching the latest posts from Supabase.</p>
+                </div>
+              ) : null}
 
-          {notificationMessage ? <p className="feed-info-message">{notificationMessage}</p> : null}
-          {shareMessage ? <p className="feed-info-message">{shareMessage}</p> : null}
+              {!isLoading && errorMessage ? (
+                <div className="community-card empty-state-card">
+                  <p className="empty-state-title">Posts unavailable</p>
+                  <p className="empty-state-copy">{errorMessage}</p>
+                </div>
+              ) : null}
 
-          {isLoading ? (
-            <div className="community-card empty-state-card">
-              <p className="empty-state-title">Loading posts</p>
-              <p className="empty-state-copy">Fetching the latest posts from Supabase.</p>
-            </div>
-          ) : null}
+              {!isLoading && !errorMessage && filteredPosts.length === 0 ? (
+                <div className="community-card empty-state-card">
+                  <p className="empty-state-title">No posts found</p>
+                  <p className="empty-state-copy">
+                    {searchQuery ? 'Try a different username search.' : 'There are no public posts yet.'}
+                  </p>
+                </div>
+              ) : null}
 
-          {!isLoading && errorMessage ? (
-            <div className="community-card empty-state-card">
-              <p className="empty-state-title">Posts unavailable</p>
-              <p className="empty-state-copy">{errorMessage}</p>
-            </div>
-          ) : null}
+              {!isLoading && !errorMessage
+                ? filteredPosts.map((post, index) => (
+                    <FeedPostCard
+                      key={post.id ?? `${post.username ?? 'post'}-${index}`}
+                      post={post}
+                      onShare={handleShare}
+                    />
+                  ))
+                : null}
+            </section>
+          </div>
 
-          {!isLoading && !errorMessage && filteredPosts.length === 0 ? (
-            <div className="community-card empty-state-card">
-              <p className="empty-state-title">No posts found</p>
-              <p className="empty-state-copy">
-                {searchQuery ? 'Try a different username search.' : 'There are no public posts yet.'}
-              </p>
-            </div>
-          ) : null}
-
-          {!isLoading && !errorMessage
-            ? filteredPosts.map((post, index) => (
-                <FeedPostCard
-                  key={post.id ?? `${post.username ?? 'post'}-${index}`}
-                  post={post}
-                  onShare={handleShare}
-                />
-              ))
-            : null}
-        </section>
+          <SuggestedAccountsRail posts={filteredPosts} viewerProfile={viewerProfile} />
+        </div>
       </section>
-
-      <BottomNav />
     </main>
   )
 }

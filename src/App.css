@@ -287,6 +287,14 @@
 }
 
 .social-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.028);
   color: #f0d080;
   font-size: 12px;
   letter-spacing: 0.16em;
@@ -294,6 +302,11 @@
 
 .social-link:hover {
   color: #f4dda1;
+}
+
+.social-link-icon {
+  width: 20px;
+  height: 20px;
 }
 
 .contact-link {
@@ -305,7 +318,7 @@
   position: relative;
   min-height: 100vh;
   min-height: 100svh;
-  padding: 24px 16px 112px;
+  padding: 24px 16px 56px;
   background: #080604;
 }
 
@@ -366,6 +379,15 @@
 }
 
 .community-frame {
+  width: min(100%, 1240px);
+}
+
+.community-page-grid {
+  display: grid;
+  gap: 24px;
+}
+
+.community-main-column {
   display: grid;
   gap: 18px;
 }
@@ -557,13 +579,13 @@
 .community-card,
 .post-card {
   display: grid;
-  gap: 22px;
-  padding: 24px 20px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 28px;
-  background: rgba(16, 12, 10, 0.92);
-  backdrop-filter: blur(28px);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.22);
+  gap: 18px;
+  padding: 22px 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 24px;
+  background: rgba(10, 8, 6, 0.78);
+  backdrop-filter: blur(18px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
 .composer-card {
@@ -704,6 +726,17 @@
   gap: 18px;
 }
 
+.post-feed-card,
+.empty-state-card,
+.composer-card,
+.sidebar-card {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.post-feed-card--official {
+  border-color: rgba(240, 208, 128, 0.18);
+}
+
 .post-feed-header,
 .post-header,
 .post-detail-author {
@@ -726,6 +759,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .post-feed-display-name,
@@ -737,7 +771,7 @@
 }
 
 .post-feed-display-name {
-  font-size: 1.55rem;
+  font-size: 1.28rem;
 }
 
 .verified-dot {
@@ -750,6 +784,21 @@
 
 .feed-meta-separator {
   color: rgba(240, 232, 220, 0.3);
+}
+
+.gold-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  color: #d9b45f;
+  filter: drop-shadow(0 0 8px rgba(217, 180, 95, 0.28));
+}
+
+.gold-badge-icon {
+  width: 18px;
+  height: 18px;
 }
 
 .post-time {
@@ -779,8 +828,8 @@
   width: 100%;
   max-height: 680px;
   object-fit: cover;
-  border-radius: 22px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .post-feed-footer,
@@ -793,8 +842,8 @@
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
-  padding-top: 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  padding-top: 6px;
+  border-top: 0;
 }
 
 .post-stat,
@@ -825,6 +874,104 @@
 
 .post-link-label--muted {
   color: rgba(240, 232, 220, 0.42);
+}
+
+.community-sidebar {
+  display: grid;
+  gap: 18px;
+}
+
+.sidebar-card {
+  position: relative;
+  display: grid;
+  gap: 16px;
+  padding: 22px 20px;
+  border-radius: 24px;
+}
+
+.sidebar-title {
+  margin: 0;
+  color: #f0e8dc;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.5rem;
+  letter-spacing: 0.04em;
+}
+
+.suggested-account-list {
+  display: grid;
+  gap: 14px;
+}
+
+.suggested-account-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.suggested-account-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.suggested-account-meta {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.suggested-account-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.suggested-account-name {
+  color: #f0e8dc;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.suggested-account-name:hover {
+  color: #f0d080;
+}
+
+.suggested-account-handle,
+.suggested-account-bio {
+  margin: 0;
+  color: rgba(240, 232, 220, 0.6);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.suggested-account-handle {
+  text-transform: lowercase;
+}
+
+.suggested-account-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-width: 72px;
+  padding: 10px 12px;
+  border: 1px solid rgba(240, 208, 128, 0.18);
+  border-radius: 999px;
+  background: rgba(240, 208, 128, 0.08);
+  color: #f0d080;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.suggested-account-button:hover {
+  border-color: rgba(240, 208, 128, 0.28);
+  color: #f4dda1;
 }
 
 .back-link {
@@ -1299,7 +1446,6 @@
     align-items: flex-start;
   }
 
-  .community-frame,
   .post-layout {
     width: min(100%, 840px);
   }
@@ -1321,5 +1467,17 @@
   .post-feed-display-name,
   .post-detail-display-name {
     font-size: 2rem;
+  }
+}
+
+@media (min-width: 1080px) {
+  .community-page-grid {
+    grid-template-columns: minmax(0, 1fr) 320px;
+    align-items: start;
+  }
+
+  .community-sidebar {
+    position: sticky;
+    top: 24px;
   }
 }

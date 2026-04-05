@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { InstagramLogoIcon, XLogoIcon } from '../components/FeedIcons.jsx'
 
 function GoogleIcon() {
   return (
@@ -142,16 +143,20 @@ function LandingPage() {
                 href="https://x.com/softmaxx"
                 target="_blank"
                 rel="noreferrer"
+                aria-label="SOFTMAXX on X"
               >
-                X
+                <XLogoIcon className="social-link-icon" />
+                <span className="sr-only">X</span>
               </a>
               <a
                 className="footer-link social-link"
                 href="https://instagram.com/softmaxx"
                 target="_blank"
                 rel="noreferrer"
+                aria-label="SOFTMAXX on Instagram"
               >
-                Instagram
+                <InstagramLogoIcon className="social-link-icon" />
+                <span className="sr-only">Instagram</span>
               </a>
             </div>
             <a className="footer-link contact-link" href="mailto:business@softmaxx.org">
