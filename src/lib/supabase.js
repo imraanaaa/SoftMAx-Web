@@ -6,6 +6,43 @@ const supabasePublishableKey =
 
 export const hasSupabaseConfig = Boolean(supabaseUrl && supabasePublishableKey)
 
-export const supabase = hasSupabaseConfig
-  ? createClient(supabaseUrl, supabasePublishableKey)
-  : null
+export function createSupabaseClient(options = {}) {
+  if (!hasSupabaseConfig) {
+    return null
+  }
+
+  return createClient(supabaseUrl, supabasePublishableKey, options)
+}
+
+export function createClerkSupabaseClient(getToken) {
+  if (!hasSupabaseConfig) {
+    return null
+  }
+
+  return createClient(supabaseUrl, supabasePublishableKey, {
+    async accessToken() {
+      if (!getToken) {
+        return null
+      }
+
+      try {
+        const templateToken = await getToken({ template: 'supabase' })
+
+        if (templateToken) {
+          return templateToken
+        }
+      } catch {
+        // Fall back to the default Clerk session token for projects using
+        // Supabase's third-party auth integration instead of a JWT template.
+      }
+
+      try {
+        return (await getToken()) ?? null
+      } catch {
+        return null
+      }
+    },
+  })
+}
+
+export const supabase = createSupabaseClient()

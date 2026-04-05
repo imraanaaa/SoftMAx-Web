@@ -1,6 +1,12 @@
 import { supabase } from './supabase.js'
+import { decodePostIdFromUrl, normalizePostIdForUrl } from './postIds.js'
 
 const PROFILE_COLUMNS = 'id, username, display_name, avatar_url, rank_name, is_verified'
+const USERNAME_PATTERN = /^[a-z0-9_]{3,20}$/
+
+function resolveSupabaseClient(client) {
+  return client ?? supabase
+}
 
 function firstDefinedValue(...values) {
   return values.find((value) => value !== null && value !== undefined) ?? null
@@ -47,8 +53,10 @@ function getProfileLookupKeys(record) {
   return [record?.profile_id, record?.user_id].filter(Boolean)
 }
 
-async function fetchProfilesMap(records) {
-  if (!supabase) {
+async function fetchProfilesMap(records, client = supabase) {
+  const activeClient = resolveSupabaseClient(client)
+
+  if (!activeClient) {
     return new Map()
   }
 
@@ -58,7 +66,7 @@ async function fetchProfilesMap(records) {
     return new Map()
   }
 
-  const { data } = await supabase.from('profiles').select(PROFILE_COLUMNS).in('id', uniqueIds)
+  const { data } = await activeClient.from('profiles').select(PROFILE_COLUMNS).in('id', uniqueIds)
 
   return new Map((data ?? []).map((record) => [record.id, normalizeProfileRecord(record)]))
 }
@@ -119,6 +127,7 @@ export function normalizePostRecord(record, fallbackUsername = '', resolvedProfi
 
   return {
     id: firstDefinedValue(record.id, record.post_id),
+    publicId: normalizePostIdForUrl(firstDefinedValue(record.id, record.post_id)),
     userId: firstDefinedValue(record.user_id, record.userId, profile?.id),
     profileId: firstDefinedValue(record.profile_id, record.profileId, profile?.id),
     username,
@@ -136,23 +145,172 @@ export function normalizePostRecord(record, fallbackUsername = '', resolvedProfi
   }
 }
 
-async function normalizePostsWithProfiles(records, fallbackUsername = '') {
-  const profilesMap = await fetchProfilesMap(records)
+async function normalizePostsWithProfiles(records, fallbackUsername = '', client = supabase) {
+  const profilesMap = await fetchProfilesMap(records, client)
 
   return records
     .map((record) => normalizePostRecord(record, fallbackUsername, resolveProfileForRecord(record, profilesMap)))
     .filter(Boolean)
 }
 
-export async function fetchProfileById(profileId) {
-  if (!supabase || !profileId) {
+export function normalizeUsername(value) {
+  return firstNonEmptyString(value).toLowerCase()
+}
+
+export function validateUsername(value) {
+  const normalizedUsername = normalizeUsername(value)
+
+  if (!normalizedUsername) {
+    return 'Username is required.'
+  }
+
+  if (normalizedUsername.length < 3) {
+    return 'Username needs at least 3 characters.'
+  }
+
+  if (normalizedUsername.length > 20) {
+    return 'Username must stay under 20 characters.'
+  }
+
+  if (!USERNAME_PATTERN.test(normalizedUsername)) {
+    return 'Use only lowercase letters, numbers, and underscores.'
+  }
+
+  return ''
+}
+
+export async function isUsernameAvailable(username, currentUserId = null, client = supabase) {
+  const activeClient = resolveSupabaseClient(client)
+  const normalizedUsername = normalizeUsername(username)
+
+  if (!activeClient || !normalizedUsername) {
+    return {
+      data: false,
+      error: new Error('Username lookup is unavailable.'),
+    }
+  }
+
+  let query = activeClient.from('profiles').select('id').eq('username', normalizedUsername).limit(1)
+
+  if (currentUserId) {
+    query = query.neq('id', currentUserId)
+  }
+
+  const { data, error } = await query.maybeSingle()
+
+  if (error) {
+    return {
+      data: false,
+      error,
+    }
+  }
+
+  return {
+    data: !data,
+    error: null,
+  }
+}
+
+function createProfileUpsertPayloads({ userId, username, displayName, avatarUrl }) {
+  const normalizedUsername = normalizeUsername(username)
+  const normalizedDisplayName = firstNonEmptyString(displayName, normalizedUsername)
+  const normalizedAvatarUrl = firstNonEmptyString(avatarUrl)
+
+  return [
+    {
+      id: userId,
+      username: normalizedUsername,
+      display_name: normalizedDisplayName,
+      avatar_url: normalizedAvatarUrl || null,
+    },
+    {
+      id: userId,
+      username: normalizedUsername,
+      display_name: normalizedDisplayName,
+    },
+    {
+      id: userId,
+      username: normalizedUsername,
+    },
+  ]
+}
+
+export async function upsertProfile(
+  { userId, username, displayName, avatarUrl },
+  client = supabase,
+) {
+  const activeClient = resolveSupabaseClient(client)
+  const usernameError = validateUsername(username)
+
+  if (!activeClient || !userId) {
+    return {
+      data: null,
+      error: new Error('Profile sync is unavailable.'),
+    }
+  }
+
+  if (usernameError) {
+    return {
+      data: null,
+      error: new Error(usernameError),
+    }
+  }
+
+  const availabilityResult = await isUsernameAvailable(username, userId, activeClient)
+
+  if (!availabilityResult.error && !availabilityResult.data) {
+    return {
+      data: null,
+      error: new Error('That username is already taken.'),
+    }
+  }
+
+  const payloads = createProfileUpsertPayloads({ userId, username, displayName, avatarUrl })
+  let lastError = null
+
+  for (const payload of payloads) {
+    const { error } = await activeClient.from('profiles').upsert(payload, { onConflict: 'id' })
+
+    if (!error) {
+      const profileResult = await fetchProfileById(userId, activeClient)
+
+      if (profileResult.data) {
+        return profileResult
+      }
+
+      return {
+        data: normalizeProfileRecord(payload),
+        error: null,
+      }
+    }
+
+    lastError = error
+
+    if (String(error?.message ?? '').toLowerCase().includes('username')) {
+      return {
+        data: null,
+        error: new Error('That username is already taken.'),
+      }
+    }
+  }
+
+  return {
+    data: null,
+    error: lastError ?? new Error('Unable to save profile right now.'),
+  }
+}
+
+export async function fetchProfileById(profileId, client = supabase) {
+  const activeClient = resolveSupabaseClient(client)
+
+  if (!activeClient || !profileId) {
     return {
       data: null,
       error: new Error('Profile lookup is unavailable.'),
     }
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await activeClient
     .from('profiles')
     .select(PROFILE_COLUMNS)
     .eq('id', profileId)
@@ -171,18 +329,22 @@ export async function fetchProfileById(profileId) {
   }
 }
 
-export async function fetchPostById(postId, fallbackUsername = '') {
-  if (!supabase) {
+export async function fetchPostById(postId, fallbackUsername = '', client = supabase) {
+  const activeClient = resolveSupabaseClient(client)
+
+  if (!activeClient) {
     return {
       data: null,
       error: new Error('Supabase is not configured.'),
     }
   }
 
-  const { data, error } = await supabase
+  const databasePostId = decodePostIdFromUrl(postId)
+
+  const { data, error } = await activeClient
     .from('posts')
     .select('*')
-    .eq('id', postId)
+    .eq('id', databasePostId)
     .maybeSingle()
 
   if (error) {
@@ -192,7 +354,11 @@ export async function fetchPostById(postId, fallbackUsername = '') {
     }
   }
 
-  const normalizedPosts = await normalizePostsWithProfiles(data ? [data] : [], fallbackUsername)
+  const normalizedPosts = await normalizePostsWithProfiles(
+    data ? [data] : [],
+    fallbackUsername,
+    activeClient,
+  )
 
   return {
     data: normalizedPosts[0] ?? null,
@@ -200,8 +366,10 @@ export async function fetchPostById(postId, fallbackUsername = '') {
   }
 }
 
-export async function fetchPosts() {
-  if (!supabase) {
+export async function fetchPosts(client = supabase) {
+  const activeClient = resolveSupabaseClient(client)
+
+  if (!activeClient) {
     return {
       data: [],
       error: new Error('Supabase is not configured.'),
@@ -209,9 +377,9 @@ export async function fetchPosts() {
   }
 
   const queries = [
-    supabase.from('posts').select('*').order('created_at', { ascending: false }),
-    supabase.from('posts').select('*').order('createdAt', { ascending: false }),
-    supabase.from('posts').select('*'),
+    activeClient.from('posts').select('*').order('created_at', { ascending: false }),
+    activeClient.from('posts').select('*').order('createdAt', { ascending: false }),
+    activeClient.from('posts').select('*'),
   ]
 
   for (const query of queries) {
@@ -221,7 +389,7 @@ export async function fetchPosts() {
       continue
     }
 
-    const normalizedPosts = await normalizePostsWithProfiles(data ?? [])
+    const normalizedPosts = await normalizePostsWithProfiles(data ?? [], '', activeClient)
 
     normalizedPosts.sort((leftPost, rightPost) => {
       const leftTime = leftPost?.timestamp ? new Date(leftPost.timestamp).getTime() : 0
@@ -242,8 +410,10 @@ export async function fetchPosts() {
   }
 }
 
-export async function createPost({ userId, profile, content, imageUrl }) {
-  if (!supabase) {
+export async function createPost({ userId, profile, content, imageUrl, client = supabase }) {
+  const activeClient = resolveSupabaseClient(client)
+
+  if (!activeClient) {
     return {
       data: null,
       error: new Error('Supabase is not configured.'),
@@ -282,7 +452,7 @@ export async function createPost({ userId, profile, content, imageUrl }) {
     stats_snapshot: {},
   }
 
-  const { data, error } = await supabase.from('posts').insert(insertPayload).select('*').single()
+  const { data, error } = await activeClient.from('posts').insert(insertPayload).select('*').single()
 
   if (error) {
     return {
@@ -297,15 +467,17 @@ export async function createPost({ userId, profile, content, imageUrl }) {
   }
 }
 
-export async function fetchUnreadNotificationsCount(userId) {
-  if (!supabase || !userId) {
+export async function fetchUnreadNotificationsCount(userId, client = supabase) {
+  const activeClient = resolveSupabaseClient(client)
+
+  if (!activeClient || !userId) {
     return {
       data: 0,
       error: null,
     }
   }
 
-  const { count, error } = await supabase
+  const { count, error } = await activeClient
     .from('notifications')
     .select('id', { count: 'exact', head: true })
     .eq('user_id', userId)

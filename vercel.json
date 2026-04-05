@@ -1,6 +1,17 @@
 {
   "rewrites": [
     {
+      "source": "/:username/:postId",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(facebookexternalhit|Facebot|Twitterbot|Slackbot|Discordbot|TelegramBot|LinkedInBot|WhatsApp|SkypeUriPreview|Googlebot|bingbot).*"
+        }
+      ],
+      "destination": "/api/post-page?username=:username&postId=:postId"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

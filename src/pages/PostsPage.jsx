@@ -1,11 +1,4 @@
-import {
-  SignInButton,
-  SignUpButton,
-  SignedIn,
-  SignedOut,
-  UserButton,
-  useUser,
-} from '@clerk/clerk-react'
+import { useAuth, useUser } from '@clerk/clerk-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
@@ -21,7 +14,7 @@ import {
   ShareIcon,
   StarIcon,
 } from '../components/FeedIcons.jsx'
-import { hasClerk } from '../lib/auth.js'
+import { authPagePath, hasClerk } from '../lib/auth.js'
 import {
   createPost,
   fetchPosts,
@@ -30,11 +23,12 @@ import {
   formatRelativePostTimestamp,
 } from '../lib/posts.js'
 import {
+  buildOfficialPostPath,
   buildOfficialPostUrl,
   formatOfficialPostUrl,
   shareOfficialPost,
 } from '../lib/share.js'
-import { hasSupabaseConfig } from '../lib/supabase.js'
+import { createClerkSupabaseClient, hasSupabaseConfig } from '../lib/supabase.js'
 
 function ProfileAvatar({ avatarUrl, initials, alt, large = false }) {
   return (
@@ -44,46 +38,47 @@ function ProfileAvatar({ avatarUrl, initials, alt, large = false }) {
   )
 }
 
-function FeedHeaderActions({ notificationCount, onNotificationsClick }) {
+function FeedHeaderActions({
+  isSignedIn,
+  notificationCount,
+  onNotificationsClick,
+  viewerProfile,
+}) {
   if (!hasClerk) {
     return <p className="header-auth-copy">Clerk is not configured in this environment.</p>
   }
 
-  return <ClerkFeedHeaderActions notificationCount={notificationCount} onNotificationsClick={onNotificationsClick} />
-}
+  if (!isSignedIn) {
+    return (
+      <div className="feed-auth-actions">
+        <Link className="feed-auth-button" to={authPagePath}>
+          Log In
+        </Link>
+        <Link className="feed-auth-button feed-auth-button--primary" to={`${authPagePath}?mode=sign-up`}>
+          Sign Up
+        </Link>
+      </div>
+    )
+  }
 
-function ClerkFeedHeaderActions({ notificationCount, onNotificationsClick }) {
   return (
     <>
-      <SignedOut>
-        <div className="feed-auth-actions">
-          <SignInButton mode="modal">
-            <button className="feed-auth-button" type="button">
-              Log In
-            </button>
-          </SignInButton>
-          <SignUpButton mode="modal">
-            <button className="feed-auth-button feed-auth-button--primary" type="button">
-              Sign Up
-            </button>
-          </SignUpButton>
-        </div>
-      </SignedOut>
-
-      <SignedIn>
-        <button
-          className="header-icon-button"
-          type="button"
-          onClick={onNotificationsClick}
-          aria-label="Notifications"
-        >
-          <BellIcon className="feed-icon" />
-          {notificationCount > 0 ? <span className="notification-badge">{notificationCount}</span> : null}
-        </button>
-        <div className="header-user-button">
-          <UserButton />
-        </div>
-      </SignedIn>
+      <button
+        className="header-icon-button"
+        type="button"
+        onClick={onNotificationsClick}
+        aria-label="Notifications"
+      >
+        <BellIcon className="feed-icon" />
+        {notificationCount > 0 ? <span className="notification-badge">{notificationCount}</span> : null}
+      </button>
+      <Link className="header-profile-link" to={authPagePath} aria-label="Account">
+        <ProfileAvatar
+          avatarUrl={viewerProfile?.avatarUrl}
+          initials={viewerProfile?.initials}
+          alt={viewerProfile?.displayName || viewerProfile?.username || 'Account'}
+        />
+      </Link>
     </>
   )
 }
@@ -114,7 +109,7 @@ function BottomNav() {
 function FeedPostCard({ post, onShare }) {
   const postUrl = buildOfficialPostUrl(post.username, post.id)
   const postUrlLabel = formatOfficialPostUrl(postUrl)
-  const postLink = post.username && post.id ? `/${encodeURIComponent(post.username)}/${encodeURIComponent(post.id)}` : '/posts'
+  const postLink = buildOfficialPostPath(post.username, post.id) || '/posts'
 
   return (
     <article className="community-card post-feed-card">
@@ -130,7 +125,7 @@ function FeedPostCard({ post, onShare }) {
             {post.isVerified ? <span className="verified-dot" aria-label="Verified" /> : null}
           </div>
           <p className="post-feed-handle">
-            @{post.username || 'unknown'} <span className="feed-meta-separator">·</span>{' '}
+            @{post.username || 'unknown'} <span className="feed-meta-separator">/</span>{' '}
             {formatRelativePostTimestamp(post.timestamp)}
           </p>
         </div>
@@ -185,6 +180,7 @@ function PostsPageContent({
   userId,
   viewerProfile,
   notificationCount,
+  supabaseClient,
   authUnavailable = false,
 }) {
   const [posts, setPosts] = useState([])
@@ -284,6 +280,7 @@ function PostsPageContent({
       profile: viewerProfile,
       content: draftContent,
       imageUrl: draftImageUrl,
+      client: supabaseClient,
     })
 
     if (error) {
@@ -317,7 +314,7 @@ function PostsPageContent({
   }
 
   const viewerName = viewerProfile?.displayName || viewerProfile?.username || 'P'
-  const composerDisabled = !isSignedIn || !authReady || isSubmitting
+  const composerDisabled = !isSignedIn || !authReady || !supabaseClient || isSubmitting
 
   return (
     <main className="community-shell">
@@ -330,8 +327,10 @@ function PostsPageContent({
 
           <div className="community-header-actions">
             <FeedHeaderActions
+              isSignedIn={isSignedIn}
               notificationCount={notificationCount}
               onNotificationsClick={handleNotificationsClick}
+              viewerProfile={viewerProfile}
             />
           </div>
         </header>
@@ -407,16 +406,12 @@ function PostsPageContent({
 
             {!isSignedIn && hasClerk ? (
               <div className="composer-auth-row">
-                <SignInButton mode="modal">
-                  <button className="feed-auth-button" type="button">
-                    Log In
-                  </button>
-                </SignInButton>
-                <SignUpButton mode="modal">
-                  <button className="feed-auth-button feed-auth-button--primary" type="button">
-                    Sign Up
-                  </button>
-                </SignUpButton>
+                <Link className="feed-auth-button" to={authPagePath}>
+                  Log In
+                </Link>
+                <Link className="feed-auth-button feed-auth-button--primary" to={`${authPagePath}?mode=sign-up`}>
+                  Sign Up
+                </Link>
               </div>
             ) : null}
 
@@ -473,9 +468,15 @@ function PostsPageContent({
 }
 
 function ClerkPostsPage() {
-  const { isLoaded, isSignedIn, user } = useUser()
+  const { isLoaded, isSignedIn, getToken } = useAuth()
+  const { user } = useUser()
   const [viewerProfile, setViewerProfile] = useState(null)
   const [notificationCount, setNotificationCount] = useState(0)
+  const supabaseClient = useMemo(() => {
+    return createClerkSupabaseClient(async () => {
+      return (await getToken()) ?? null
+    })
+  }, [getToken])
 
   useEffect(() => {
     let isMounted = true
@@ -491,8 +492,8 @@ function ClerkPostsPage() {
       }
 
       const [{ data: profile }, { data: unreadCount }] = await Promise.all([
-        fetchProfileById(user.id),
-        fetchUnreadNotificationsCount(user.id),
+        fetchProfileById(user.id, supabaseClient),
+        fetchUnreadNotificationsCount(user.id, supabaseClient),
       ])
 
       if (!isMounted) {
@@ -508,7 +509,7 @@ function ClerkPostsPage() {
     return () => {
       isMounted = false
     }
-  }, [isLoaded, isSignedIn, user?.id])
+  }, [isLoaded, isSignedIn, supabaseClient, user?.id])
 
   return (
     <PostsPageContent
@@ -517,6 +518,7 @@ function ClerkPostsPage() {
       userId={user?.id ?? null}
       viewerProfile={viewerProfile}
       notificationCount={notificationCount}
+      supabaseClient={supabaseClient}
     />
   )
 }
@@ -533,6 +535,7 @@ function PostsPage() {
       userId={null}
       viewerProfile={null}
       notificationCount={0}
+      supabaseClient={null}
       authUnavailable
     />
   )

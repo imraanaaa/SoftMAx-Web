@@ -4,7 +4,12 @@ import { ClerkProvider } from '@clerk/clerk-react'
 import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import App from './App.jsx'
-import { clerkPublishableKey, hasClerk } from './lib/auth.js'
+import {
+  authPagePath,
+  clerkPublishableKey,
+  defaultAfterAuthUrl,
+  hasClerk,
+} from './lib/auth.js'
 
 const app = (
   <StrictMode>
@@ -15,5 +20,17 @@ const app = (
 )
 
 createRoot(document.getElementById('root')).render(
-  hasClerk ? <ClerkProvider publishableKey={clerkPublishableKey}>{app}</ClerkProvider> : app,
+  hasClerk ? (
+    <ClerkProvider
+      publishableKey={clerkPublishableKey}
+      signInUrl={authPagePath}
+      signUpUrl={`${authPagePath}?mode=sign-up`}
+      signInFallbackRedirectUrl={defaultAfterAuthUrl}
+      signUpFallbackRedirectUrl={defaultAfterAuthUrl}
+    >
+      {app}
+    </ClerkProvider>
+  ) : (
+    app
+  ),
 )

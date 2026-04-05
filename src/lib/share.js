@@ -1,3 +1,5 @@
+import { normalizePostIdForUrl } from './postIds.js'
+
 export const OFFICIAL_APP_ORIGIN = 'https://softmaxx.org'
 
 function cleanSegment(value) {
@@ -14,15 +16,25 @@ function cleanSegment(value) {
   return encodeURIComponent(normalizedValue)
 }
 
-export function buildOfficialPostUrl(username, postId) {
+export function buildOfficialPostPath(username, postId) {
   const safeUsername = cleanSegment(username)
-  const safePostId = cleanSegment(postId)
+  const safePostId = cleanSegment(normalizePostIdForUrl(postId))
 
   if (!safeUsername || !safePostId) {
     return ''
   }
 
-  return `${OFFICIAL_APP_ORIGIN}/${safeUsername}/${safePostId}`
+  return `/${safeUsername}/${safePostId}`
+}
+
+export function buildOfficialPostUrl(username, postId) {
+  const path = buildOfficialPostPath(username, postId)
+
+  if (!path) {
+    return ''
+  }
+
+  return `${OFFICIAL_APP_ORIGIN}${path}`
 }
 
 export function formatOfficialPostUrl(url) {
