@@ -20,6 +20,7 @@ import {
   formatRelativePostTimestamp,
 } from '../lib/posts.js'
 import {
+  buildOfficialProfilePath,
   buildOfficialPostPath,
   buildOfficialPostUrl,
   formatOfficialPostUrl,
@@ -33,7 +34,6 @@ const FEATURED_SOFTMAXX_ACCOUNT = {
   initials: 'S',
   avatarUrl: '',
   bio: 'Official SOFTMAXX account',
-  postId: null,
 }
 
 function isOfficialAccount(account) {
@@ -69,7 +69,11 @@ function createSuggestedAccounts(posts, viewerProfile) {
   for (const post of posts) {
     const normalizedUsername = String(post?.username ?? '').trim().toLowerCase()
 
-    if (!normalizedUsername || normalizedUsername === viewerUsername || seenUsernames.has(normalizedUsername)) {
+    if (
+      !normalizedUsername ||
+      normalizedUsername === viewerUsername ||
+      seenUsernames.has(normalizedUsername)
+    ) {
       continue
     }
 
@@ -79,7 +83,6 @@ function createSuggestedAccounts(posts, viewerProfile) {
       initials: post.initials,
       avatarUrl: post.avatarUrl,
       bio: isOfficialAccount(post) ? 'Official SOFTMAXX account' : 'Community account',
-      postId: post.id,
       isOfficial: isOfficialAccount(post),
     })
 
@@ -127,7 +130,11 @@ function FeedHeaderActions({ isSignedIn, notificationCount, onNotificationsClick
           <span className="notification-badge">{notificationCount}</span>
         ) : null}
       </button>
-      <Link className="header-profile-link" to={authPagePath} aria-label="Account">
+      <Link
+        className="header-profile-link"
+        to={buildOfficialProfilePath(viewerProfile?.username) || authPagePath}
+        aria-label="Account"
+      >
         <ProfileAvatar
           avatarUrl={viewerProfile?.avatarUrl}
           initials={viewerProfile?.initials}
@@ -142,23 +149,41 @@ function FeedPostCard({ post, onShare }) {
   const postUrl = buildOfficialPostUrl(post.username, post.id)
   const postUrlLabel = formatOfficialPostUrl(postUrl)
   const postLink = buildOfficialPostPath(post.username, post.id) || '/posts'
+  const profileLink = buildOfficialProfilePath(post.username) || '/posts'
   const isOfficial = isOfficialAccount(post)
 
   return (
     <article className={`community-card post-feed-card${isOfficial ? ' post-feed-card--official' : ''}`}>
       <header className="post-feed-header">
-        <ProfileAvatar
-          avatarUrl={post.avatarUrl}
-          initials={post.initials}
-          alt={post.displayName || post.username || 'SOFTMAXX user'}
-        />
+        <Link
+          className="post-author-link"
+          to={profileLink}
+          aria-label={`Open ${post.displayName || post.username || 'SOFTMAXX user'} profile`}
+        >
+          <ProfileAvatar
+            avatarUrl={post.avatarUrl}
+            initials={post.initials}
+            alt={post.displayName || post.username || 'SOFTMAXX user'}
+          />
+        </Link>
         <div className="post-feed-meta">
           <div className="post-feed-title-row">
-            <h2 className="post-feed-display-name">{post.displayName || 'Unknown user'}</h2>
-            {isOfficial ? <GoldBadge /> : post.isVerified ? <span className="verified-dot" aria-label="Verified" /> : null}
+            <h2 className="post-feed-display-name">
+              <Link className="post-author-link post-author-link--name" to={profileLink}>
+                {post.displayName || 'Unknown user'}
+              </Link>
+            </h2>
+            {isOfficial ? (
+              <GoldBadge />
+            ) : post.isVerified ? (
+              <span className="verified-dot" aria-label="Verified" />
+            ) : null}
           </div>
           <p className="post-feed-handle">
-            @{post.username || 'unknown'} <span className="feed-meta-separator">·</span>{' '}
+            <Link className="post-author-link post-author-link--handle" to={profileLink}>
+              @{post.username || 'unknown'}
+            </Link>{' '}
+            <span className="feed-meta-separator">/</span>{' '}
             {formatRelativePostTimestamp(post.timestamp)}
           </p>
         </div>
@@ -208,19 +233,18 @@ function FeedPostCard({ post, onShare }) {
 }
 
 function SuggestedAccountRow({ account }) {
-  const targetPath =
-    account.postId && account.username
-      ? buildOfficialPostPath(account.username, account.postId) || '/posts'
-      : '/posts'
+  const targetPath = buildOfficialProfilePath(account.username) || '/posts'
 
   return (
     <article className="suggested-account-row">
       <div className="suggested-account-main">
-        <ProfileAvatar
-          avatarUrl={account.avatarUrl}
-          initials={account.initials}
-          alt={account.displayName || account.username || 'SOFTMAXX account'}
-        />
+        <Link className="post-author-link" to={targetPath}>
+          <ProfileAvatar
+            avatarUrl={account.avatarUrl}
+            initials={account.initials}
+            alt={account.displayName || account.username || 'SOFTMAXX account'}
+          />
+        </Link>
         <div className="suggested-account-meta">
           <div className="suggested-account-name-row">
             <Link className="suggested-account-name" to={targetPath}>
@@ -233,7 +257,7 @@ function SuggestedAccountRow({ account }) {
         </div>
       </div>
       <Link className="suggested-account-button" to={targetPath}>
-        View
+        Profile
       </Link>
     </article>
   )
@@ -251,10 +275,7 @@ function SuggestedAccountsRail({ posts, viewerProfile }) {
         <p className="sidebar-title">Accounts To Follow</p>
         <div className="suggested-account-list">
           {suggestedAccounts.map((account) => (
-            <SuggestedAccountRow
-              key={`${account.username}-${account.postId ?? 'featured'}`}
-              account={account}
-            />
+            <SuggestedAccountRow key={account.username} account={account} />
           ))}
         </div>
       </section>
@@ -356,7 +377,9 @@ function PostsPageContent({
     }
 
     if (!viewerProfile) {
-      setComposerMessage('We could not find your profile yet. Open the app and finish profile setup first.')
+      setComposerMessage(
+        'We could not find your profile yet. Open the app and finish profile setup first.',
+      )
       return
     }
 

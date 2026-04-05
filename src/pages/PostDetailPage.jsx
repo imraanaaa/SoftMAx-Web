@@ -2,7 +2,12 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { CommentIcon, GoldBadgeIcon, HeartIcon, ShareIcon } from '../components/FeedIcons.jsx'
 import { fetchPostById, formatPostTimestamp } from '../lib/posts.js'
-import { buildOfficialPostUrl, formatOfficialPostUrl, shareOfficialPost } from '../lib/share.js'
+import {
+  buildOfficialProfilePath,
+  buildOfficialPostUrl,
+  formatOfficialPostUrl,
+  shareOfficialPost,
+} from '../lib/share.js'
 import { hasSupabaseConfig } from '../lib/supabase.js'
 
 function isOfficialAccount(account) {
@@ -134,6 +139,7 @@ function PostDetailPage() {
   const displayName = post?.displayName || displayUsername
   const displayContent = post?.content || 'This post does not have any text yet.'
   const displayTimestamp = formatPostTimestamp(post?.timestamp)
+  const profilePath = buildOfficialProfilePath(displayUsername) || '/posts'
   const isOfficial = isOfficialAccount(post)
 
   return (
@@ -146,20 +152,27 @@ function PostDetailPage() {
         <article className="community-card post-detail-card" aria-labelledby="post-author">
           <header className="post-header">
             <div className="post-detail-author">
-              <div className="profile-avatar profile-avatar--large">
-                {post?.avatarUrl ? (
-                  <img src={post.avatarUrl} alt={displayName} />
-                ) : (
-                  <span>{post?.initials || displayName.charAt(0).toUpperCase()}</span>
-                )}
-              </div>
+              <Link className="post-author-link" to={profilePath} aria-label={`Open ${displayName} profile`}>
+                <div className="profile-avatar profile-avatar--large">
+                  {post?.avatarUrl ? (
+                    <img src={post.avatarUrl} alt={displayName} />
+                  ) : (
+                    <span>{post?.initials || displayName.charAt(0).toUpperCase()}</span>
+                  )}
+                </div>
+              </Link>
               <div>
                 <p className="post-kicker">Shared post</p>
                 <h1 className="post-detail-display-name" id="post-author">
-                  {displayName}
+                  <Link className="post-author-link post-author-link--name" to={profilePath}>
+                    {displayName}
+                  </Link>
                 </h1>
                 <p className="post-feed-handle">
-                  @{displayUsername} {isOfficial ? <GoldBadge /> : null}
+                  <Link className="post-author-link post-author-link--handle" to={profilePath}>
+                    @{displayUsername}
+                  </Link>{' '}
+                  {isOfficial ? <GoldBadge /> : null}
                 </p>
               </div>
             </div>

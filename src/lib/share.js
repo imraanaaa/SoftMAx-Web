@@ -27,6 +27,26 @@ export function buildOfficialPostPath(username, postId) {
   return `/${safeUsername}/${safePostId}`
 }
 
+export function buildOfficialProfilePath(username) {
+  const safeUsername = cleanSegment(String(username ?? '').replace(/^@+/, ''))
+
+  if (!safeUsername) {
+    return ''
+  }
+
+  return `/profile/${safeUsername}`
+}
+
+export function buildOfficialProfileUrl(username) {
+  const path = buildOfficialProfilePath(username)
+
+  if (!path) {
+    return ''
+  }
+
+  return `${OFFICIAL_APP_ORIGIN}${path}`
+}
+
 export function buildOfficialPostUrl(username, postId) {
   const path = buildOfficialPostPath(username, postId)
 

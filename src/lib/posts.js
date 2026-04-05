@@ -329,6 +329,36 @@ export async function fetchProfileById(profileId, client = supabase) {
   }
 }
 
+export async function fetchProfileByUsername(username, client = supabase) {
+  const activeClient = resolveSupabaseClient(client)
+  const normalizedUsername = normalizeUsername(username)
+
+  if (!activeClient || !normalizedUsername) {
+    return {
+      data: null,
+      error: new Error('Profile lookup is unavailable.'),
+    }
+  }
+
+  const { data, error } = await activeClient
+    .from('profiles')
+    .select(PROFILE_COLUMNS)
+    .eq('username', normalizedUsername)
+    .maybeSingle()
+
+  if (error) {
+    return {
+      data: null,
+      error,
+    }
+  }
+
+  return {
+    data: normalizeProfileRecord(data),
+    error: null,
+  }
+}
+
 export async function fetchPostById(postId, fallbackUsername = '', client = supabase) {
   const activeClient = resolveSupabaseClient(client)
 
@@ -407,6 +437,72 @@ export async function fetchPosts(client = supabase) {
   return {
     data: [],
     error: new Error('Unable to fetch posts from Supabase.'),
+  }
+}
+
+export async function fetchPostsByProfileUsername(username, client = supabase) {
+  const activeClient = resolveSupabaseClient(client)
+  const profileResult = await fetchProfileByUsername(username, activeClient)
+
+  if (profileResult.error) {
+    return {
+      data: [],
+      profile: null,
+      error: profileResult.error,
+    }
+  }
+
+  if (!profileResult.data?.id) {
+    return {
+      data: [],
+      profile: null,
+      error: new Error('Profile not found.'),
+    }
+  }
+
+  const queries = [
+    activeClient
+      .from('posts')
+      .select('*')
+      .or(`profile_id.eq.${profileResult.data.id},user_id.eq.${profileResult.data.id}`)
+      .order('created_at', { ascending: false }),
+    activeClient
+      .from('posts')
+      .select('*')
+      .or(`profile_id.eq.${profileResult.data.id},user_id.eq.${profileResult.data.id}`),
+  ]
+
+  for (const query of queries) {
+    const { data, error } = await query
+
+    if (error) {
+      continue
+    }
+
+    const normalizedPosts = await normalizePostsWithProfiles(
+      data ?? [],
+      profileResult.data.username,
+      activeClient,
+    )
+
+    normalizedPosts.sort((leftPost, rightPost) => {
+      const leftTime = leftPost?.timestamp ? new Date(leftPost.timestamp).getTime() : 0
+      const rightTime = rightPost?.timestamp ? new Date(rightPost.timestamp).getTime() : 0
+
+      return rightTime - leftTime
+    })
+
+    return {
+      data: normalizedPosts,
+      profile: profileResult.data,
+      error: null,
+    }
+  }
+
+  return {
+    data: [],
+    profile: profileResult.data,
+    error: new Error('Unable to fetch posts for this profile.'),
   }
 }
 
