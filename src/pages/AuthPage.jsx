@@ -1,4 +1,14 @@
-import { useAuth, useClerk, useSignIn, useSignUp, useUser } from '@clerk/clerk-react'
+import {
+  ClerkDegraded,
+  ClerkFailed,
+  ClerkLoaded,
+  ClerkLoading,
+  useAuth,
+  useClerk,
+  useSignIn,
+  useSignUp,
+  useUser,
+} from '@clerk/clerk-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
@@ -17,6 +27,7 @@ import {
 import { createClerkSupabaseClient } from '../lib/supabase.js'
 
 const pendingUsernameStorageKey = 'softmaxx_pending_username'
+const authLoadTimeoutMs = 8000
 
 function storePendingUsername(username) {
   const normalizedUsername = normalizeUsername(username)
@@ -37,7 +48,47 @@ function clearPendingUsername() {
   sessionStorage.removeItem(pendingUsernameStorageKey)
 }
 
-function AuthUnavailablePage() {
+function goHome() {
+  window.location.assign('/')
+}
+
+function reloadPage() {
+  window.location.reload()
+}
+
+function hasInternalAuthMessage(message) {
+  const normalizedMessage = String(message ?? '').toLowerCase()
+
+  return [
+    'publishable key',
+    'api key',
+    'pk_live',
+    'pk_test',
+    'development',
+    'production',
+    'environment',
+    'origin',
+    'domain',
+    'clerk',
+  ].some((keyword) => normalizedMessage.includes(keyword))
+}
+
+function getPublicAuthError(error, fallbackMessage) {
+  const rawMessage =
+    error?.errors?.[0]?.longMessage || error?.errors?.[0]?.message || error?.message || ''
+
+  if (!rawMessage || hasInternalAuthMessage(rawMessage)) {
+    if (import.meta.env.DEV && rawMessage) {
+      console.error('Sanitized auth error:', rawMessage)
+    }
+
+    return fallbackMessage
+  }
+
+  return rawMessage
+}
+
+function AuthShell({ children }) {
   return (
     <main className="auth-shell">
       <section className="auth-column">
@@ -46,19 +97,76 @@ function AuthUnavailablePage() {
           <h1 className="auth-logo">SOFTMAXX</h1>
           <p className="auth-tagline">The Ascension System</p>
         </div>
-
-        <section className="auth-card">
-          <p className="auth-section-label">Auth Unavailable</p>
-          <h2 className="auth-title">Clerk is not configured here.</h2>
-          <p className="auth-copy">
-            Add <code>VITE_CLERK_PUBLISHABLE_KEY</code> to this environment, then redeploy.
-          </p>
-          <Link className="auth-secondary-link" to="/">
-            Back to home
-          </Link>
-        </section>
+        {children}
       </section>
     </main>
+  )
+}
+
+function AuthStatusCard({
+  sectionLabel,
+  title,
+  copy,
+  centered = false,
+  showSpinner = false,
+  children,
+}) {
+  return (
+    <section className={centered ? 'auth-card auth-card--loading' : 'auth-card'}>
+      <p className="auth-section-label">{sectionLabel}</p>
+      {showSpinner ? <div className="auth-spinner" aria-hidden="true" /> : null}
+      <h2 className="auth-title">{title}</h2>
+      <p className="auth-copy">{copy}</p>
+      {children}
+    </section>
+  )
+}
+
+function AuthRecoveryCard({
+  sectionLabel,
+  title,
+  copy,
+  primaryLabel,
+  onPrimary,
+  secondaryLabel = 'Back to home',
+  onSecondary = goHome,
+  tertiaryLabel,
+  onTertiary,
+}) {
+  return (
+    <AuthStatusCard sectionLabel={sectionLabel} title={title} copy={copy} centered>
+      <div className="auth-action-stack">
+        {primaryLabel && onPrimary ? (
+          <button className="auth-primary-button" type="button" onClick={onPrimary}>
+            {primaryLabel}
+          </button>
+        ) : null}
+        {secondaryLabel && onSecondary ? (
+          <button className="auth-secondary-button" type="button" onClick={onSecondary}>
+            {secondaryLabel}
+          </button>
+        ) : null}
+        {tertiaryLabel && onTertiary ? (
+          <button className="auth-secondary-button" type="button" onClick={onTertiary}>
+            {tertiaryLabel}
+          </button>
+        ) : null}
+      </div>
+    </AuthStatusCard>
+  )
+}
+
+function AuthUnavailablePage() {
+  return (
+    <AuthShell>
+      <AuthRecoveryCard
+        sectionLabel="Sign In"
+        title="Sign-in is temporarily unavailable."
+        copy="Please try again shortly."
+        primaryLabel="Try Again"
+        onPrimary={reloadPage}
+      />
+    </AuthShell>
   )
 }
 
@@ -97,28 +205,43 @@ function ClerkAuthPage() {
   const [isProfileLoading, setIsProfileLoading] = useState(false)
   const [isWorking, setIsWorking] = useState(false)
   const [pendingVerification, setPendingVerification] = useState(null)
+  const [profileRefreshNonce, setProfileRefreshNonce] = useState(0)
 
-  const modeParam = searchParams.get('mode')
-  const mode =
-    modeParam === 'sign-up' || modeParam === 'complete-profile' ? modeParam : 'sign-in'
+  const requestedMode = searchParams.get('mode')
+  const mode = requestedMode === 'sign-up' || requestedMode === 'complete-profile' ? 'sign-up' : 'sign-in'
   const signUpNeedsUsername =
     Boolean(signUpLoaded && signUp) &&
     signUp?.status === 'missing_requirements' &&
     Array.isArray(signUp.missingFields) &&
     signUp.missingFields.includes('username')
   const shouldCompleteSignedInProfile =
-    authLoaded && isSignedIn && user?.id && !isProfileLoading && !profileError && !profile?.username
+    authLoaded &&
+    isSignedIn &&
+    user?.id &&
+    !isProfileLoading &&
+    !profileError &&
+    !profile?.username
   const shouldShowProfileCompletion = signUpNeedsUsername || shouldCompleteSignedInProfile
+  const shouldShowSignedInIssue =
+    authLoaded && isSignedIn && !isProfileLoading && Boolean(profileError)
   const showVerificationForm =
     pendingVerification === 'sign-in' || pendingVerification === 'sign-up'
-  const showPrimarySignUpForm = !showVerificationForm && !shouldShowProfileCompletion && mode === 'sign-up'
-  const showPrimarySignInForm = !showVerificationForm && !shouldShowProfileCompletion && mode === 'sign-in'
+  const showPrimarySignUpForm =
+    !showVerificationForm && !shouldShowProfileCompletion && mode === 'sign-up'
+  const showPrimarySignInForm =
+    !showVerificationForm && !shouldShowProfileCompletion && mode === 'sign-in'
   const showUsernameField = showPrimarySignUpForm || shouldShowProfileCompletion
   const initials =
     user?.firstName?.charAt(0)?.toUpperCase() ||
     user?.username?.charAt(0)?.toUpperCase() ||
     profile?.initials ||
     'S'
+
+  useEffect(() => {
+    if (import.meta.env.DEV && isDevelopmentClerkKey) {
+      console.warn('Clerk is using a test publishable key in this environment.')
+    }
+  }, [])
 
   useEffect(() => {
     if (!showUsernameField) {
@@ -187,9 +310,16 @@ function ClerkAuthPage() {
   }, [profile?.username, showUsernameField, user?.username, username])
 
   useEffect(() => {
-    if (!authLoaded || !isSignedIn || !user?.id || !authedSupabaseClient) {
+    if (!authLoaded || !isSignedIn || !user?.id) {
       setProfile(null)
       setProfileError('')
+      setIsProfileLoading(false)
+      return
+    }
+
+    if (!authedSupabaseClient) {
+      setProfile(null)
+      setProfileError('We could not finish loading your account right now.')
       setIsProfileLoading(false)
       return
     }
@@ -208,7 +338,7 @@ function ClerkAuthPage() {
 
       if (error && data === null) {
         setProfile(null)
-        setProfileError('We could not load your website profile yet.')
+        setProfileError('We could not finish loading your account right now.')
         setIsProfileLoading(false)
         return
       }
@@ -222,7 +352,7 @@ function ClerkAuthPage() {
     return () => {
       isMounted = false
     }
-  }, [authLoaded, authedSupabaseClient, isSignedIn, user?.id])
+  }, [authLoaded, authedSupabaseClient, isSignedIn, profileRefreshNonce, user?.id])
 
   function updateMode(nextMode) {
     const nextParams = new URLSearchParams(searchParams)
@@ -242,7 +372,7 @@ function ClerkAuthPage() {
 
   async function persistProfile(targetUserId, targetUsername) {
     if (!targetUserId) {
-      setFormError('Your account is ready, but we still need your user id to finish setup.')
+      setFormError('We could not finish setting up your account right now.')
       return false
     }
 
@@ -257,7 +387,12 @@ function ClerkAuthPage() {
     )
 
     if (profileResult.error) {
-      setFormError(profileResult.error.message)
+      setFormError(
+        getPublicAuthError(
+          profileResult.error,
+          'We could not finish setting up your profile right now.',
+        ),
+      )
       return false
     }
 
@@ -312,9 +447,9 @@ function ClerkAuthPage() {
         }
       }
 
-      setFormError('This sign-in still needs another step. Finish it in Clerk or try Google.')
+      setFormError('This sign-in needs another step. Please try again.')
     } catch (error) {
-      setFormError(error.errors?.[0]?.longMessage || error.errors?.[0]?.message || error.message)
+      setFormError(getPublicAuthError(error, 'We could not sign you in right now.'))
     } finally {
       setIsWorking(false)
     }
@@ -349,7 +484,7 @@ function ClerkAuthPage() {
       setPendingVerification('sign-up')
       setFormMessage(`Enter the code sent to ${emailAddress.trim()}.`)
     } catch (error) {
-      setFormError(error.errors?.[0]?.longMessage || error.errors?.[0]?.message || error.message)
+      setFormError(getPublicAuthError(error, 'We could not create your account right now.'))
     } finally {
       setIsWorking(false)
     }
@@ -421,7 +556,7 @@ function ClerkAuthPage() {
         setFormError('That verification code did not finish sign-in.')
       }
     } catch (error) {
-      setFormError(error.errors?.[0]?.longMessage || error.errors?.[0]?.message || error.message)
+      setFormError(getPublicAuthError(error, 'We could not verify that code right now.'))
     } finally {
       setIsWorking(false)
     }
@@ -461,7 +596,7 @@ function ClerkAuthPage() {
         }
 
         if (result.status !== 'missing_requirements') {
-          setFormError('Your sign-up still needs another required field in Clerk.')
+          setFormError('Your sign-up still needs another required field.')
         }
 
         return
@@ -475,7 +610,9 @@ function ClerkAuthPage() {
         }
       }
     } catch (error) {
-      setFormError(error.errors?.[0]?.longMessage || error.errors?.[0]?.message || error.message)
+      setFormError(
+        getPublicAuthError(error, 'We could not finish setting up your profile right now.'),
+      )
     } finally {
       setIsWorking(false)
     }
@@ -499,7 +636,7 @@ function ClerkAuthPage() {
         continueSignUp: true,
       })
     } catch (error) {
-      setFormError(error.errors?.[0]?.longMessage || error.errors?.[0]?.message || error.message)
+      setFormError(getPublicAuthError(error, 'Google sign-in is unavailable right now.'))
     }
   }
 
@@ -507,333 +644,384 @@ function ClerkAuthPage() {
     await clerk.signOut({ redirectUrl: '/auth' })
   }
 
-  if (!authLoaded || !signInLoaded || !signUpLoaded) {
-    return (
-      <main className="auth-shell">
-        <section className="auth-column">
-          <div className="auth-brand">
-            <p className="auth-kicker">SOFTMAXX</p>
-            <h1 className="auth-logo">SOFTMAXX</h1>
-            <p className="auth-tagline">The Ascension System</p>
-          </div>
+  function handleRetryProfileLoad() {
+    setFormMessage('')
+    setFormError('')
+    setProfileError('')
+    setProfileRefreshNonce((value) => value + 1)
+  }
 
-          <section className="auth-card auth-card--loading">
-            <div className="auth-spinner" aria-hidden="true" />
-            <p className="auth-loading-copy">Loading secure sign-in...</p>
-          </section>
-        </section>
-      </main>
+  if (authLoaded && isSignedIn && isProfileLoading) {
+    return (
+      <AuthStatusCard
+        sectionLabel="Account"
+        title="Loading your account..."
+        copy="Finishing your SOFTMAXX profile."
+        centered
+        showSpinner
+      >
+        <div className="auth-action-stack">
+          <button className="auth-secondary-button" type="button" onClick={handleSignOut}>
+            Sign Out
+          </button>
+        </div>
+      </AuthStatusCard>
+    )
+  }
+
+  if (shouldShowSignedInIssue) {
+    return (
+      <AuthRecoveryCard
+        sectionLabel="Account"
+        title="We could not finish loading your account."
+        copy="Please try again. Your sign-in was successful."
+        primaryLabel="Try Again"
+        onPrimary={handleRetryProfileLoad}
+        secondaryLabel="Sign Out"
+        onSecondary={handleSignOut}
+      />
     )
   }
 
   if (isSignedIn && profile?.username && !shouldShowProfileCompletion) {
     return (
-      <main className="auth-shell">
-        <section className="auth-column">
-          <div className="auth-brand">
-            <p className="auth-kicker">SOFTMAXX</p>
-            <h1 className="auth-logo">SOFTMAXX</h1>
-            <p className="auth-tagline">The Ascension System</p>
+      <section className="auth-card">
+        <p className="auth-section-label">Account Ready</p>
+        <div className="auth-account-header">
+          <ProfileBadge imageUrl={user?.imageUrl || profile?.avatarUrl} initials={initials} />
+          <div>
+            <h2 className="auth-title">
+              {profile.displayName || user?.firstName || profile.username || 'Hunter'}
+            </h2>
+            <p className="auth-copy">@{profile.username}</p>
+            <p className="auth-copy auth-copy--muted">
+              {user?.primaryEmailAddress?.emailAddress}
+            </p>
           </div>
+        </div>
 
-          <section className="auth-card">
-            <p className="auth-section-label">Account Ready</p>
-            <div className="auth-account-header">
-              <ProfileBadge imageUrl={user?.imageUrl || profile?.avatarUrl} initials={initials} />
-              <div>
-                <h2 className="auth-title">
-                  {profile.displayName || user?.firstName || profile.username || 'Hunter'}
-                </h2>
-                <p className="auth-copy">@{profile.username}</p>
-                <p className="auth-copy auth-copy--muted">{user?.primaryEmailAddress?.emailAddress}</p>
-              </div>
-            </div>
-
-            {profileError ? <p className="auth-error">{profileError}</p> : null}
-
-            {isDevelopmentClerkKey ? (
-              <div className="auth-dev-note">
-                Clerk is still using a development publishable key here. For the live site, switch
-                Vercel to the same production Clerk app your Android app uses.
-              </div>
-            ) : null}
-
-            <div className="auth-action-stack">
-              <button
-                className="auth-primary-button"
-                type="button"
-                onClick={() => navigate(defaultAfterAuthUrl)}
-              >
-                Continue To Community
-              </button>
-              <button className="auth-secondary-button" type="button" onClick={handleSignOut}>
-                Sign Out
-              </button>
-            </div>
-          </section>
-        </section>
-      </main>
+        <div className="auth-action-stack">
+          <button
+            className="auth-primary-button"
+            type="button"
+            onClick={() => navigate(defaultAfterAuthUrl)}
+          >
+            Continue To Community
+          </button>
+          <button className="auth-secondary-button" type="button" onClick={handleSignOut}>
+            Sign Out
+          </button>
+        </div>
+      </section>
     )
   }
 
   return (
-    <main className="auth-shell">
-      <section className="auth-column">
-        <div className="auth-brand">
-          <p className="auth-kicker">SOFTMAXX</p>
-          <h1 className="auth-logo">SOFTMAXX</h1>
-          <p className="auth-tagline">The Ascension System</p>
+    <section className="auth-card">
+      {!showVerificationForm && !shouldShowProfileCompletion ? (
+        <div className="auth-tabs" role="tablist" aria-label="Authentication mode">
+          <button
+            className={`auth-tab${mode === 'sign-in' ? ' auth-tab--active' : ''}`}
+            type="button"
+            onClick={() => updateMode('sign-in')}
+          >
+            Sign In
+          </button>
+          <button
+            className={`auth-tab${mode === 'sign-up' ? ' auth-tab--active' : ''}`}
+            type="button"
+            onClick={() => updateMode('sign-up')}
+          >
+            Sign Up
+          </button>
         </div>
+      ) : null}
 
-        <section className="auth-card">
-          {!showVerificationForm && !shouldShowProfileCompletion ? (
-            <div className="auth-tabs" role="tablist" aria-label="Authentication mode">
-              <button
-                className={`auth-tab${mode === 'sign-in' ? ' auth-tab--active' : ''}`}
-                type="button"
-                onClick={() => updateMode('sign-in')}
-              >
-                Sign In
-              </button>
-              <button
-                className={`auth-tab${mode === 'sign-up' ? ' auth-tab--active' : ''}`}
-                type="button"
-                onClick={() => updateMode('sign-up')}
-              >
-                Sign Up
-              </button>
-            </div>
+      <p className="auth-section-label">
+        {showVerificationForm
+          ? 'Email Verification'
+          : shouldShowProfileCompletion
+            ? 'Choose Username'
+            : mode === 'sign-up'
+              ? 'Create Account'
+              : 'Welcome Back'}
+      </p>
+
+      <h2 className="auth-title">
+        {showVerificationForm
+          ? 'Verify your email'
+          : shouldShowProfileCompletion
+            ? 'Finish your profile'
+            : mode === 'sign-up'
+              ? 'Create the same account your app will use.'
+              : 'Sign in with your SOFTMAXX account.'}
+      </h2>
+
+      <p className="auth-copy">
+        {showVerificationForm
+          ? 'Enter the code we sent to your email.'
+          : shouldShowProfileCompletion
+            ? 'Pick the username that will appear in the community feed and inside the app.'
+            : mode === 'sign-up'
+              ? 'Website signup and Android login use the same account.'
+              : 'Use email/password or Google. Your progress stays on the same account.'}
+      </p>
+
+      {showPrimarySignInForm ? (
+        <form className="auth-form" onSubmit={handleSignInSubmit}>
+          <label className="auth-field">
+            <span>Email</span>
+            <input
+              autoComplete="email"
+              className="auth-input"
+              type="email"
+              value={emailAddress}
+              onChange={(event) => setEmailAddress(event.target.value)}
+              placeholder="your@email.com"
+              required
+            />
+          </label>
+
+          <label className="auth-field">
+            <span>Password</span>
+            <input
+              autoComplete="current-password"
+              className="auth-input"
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="********"
+              required
+            />
+          </label>
+
+          <button className="auth-primary-button" disabled={isWorking} type="submit">
+            {isWorking ? 'Signing In...' : 'Sign In'}
+          </button>
+        </form>
+      ) : null}
+
+      {showPrimarySignUpForm ? (
+        <form className="auth-form" onSubmit={handleSignUpSubmit}>
+          <label className="auth-field">
+            <span>Email</span>
+            <input
+              autoComplete="email"
+              className="auth-input"
+              type="email"
+              value={emailAddress}
+              onChange={(event) => setEmailAddress(event.target.value)}
+              placeholder="your@email.com"
+              required
+            />
+          </label>
+
+          <label className="auth-field">
+            <span>Password</span>
+            <input
+              autoComplete="new-password"
+              className="auth-input"
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="At least 6 characters"
+              required
+            />
+          </label>
+
+          <label className="auth-field">
+            <span>Username</span>
+            <input
+              autoComplete="username"
+              className="auth-input"
+              type="text"
+              value={username}
+              onChange={(event) => setUsername(normalizeUsername(event.target.value))}
+              placeholder="hunter_name"
+              required
+            />
+          </label>
+
+          {usernameStatus ? (
+            <p
+              className={`auth-status-copy${
+                usernameStatus === 'Username available'
+                  ? ' auth-status-copy--success'
+                  : usernameStatus === 'Checking username...'
+                    ? ''
+                    : ' auth-status-copy--error'
+              }`}
+            >
+              {usernameStatus}
+            </p>
           ) : null}
 
-          <p className="auth-section-label">
-            {showVerificationForm
-              ? 'Email Verification'
-              : shouldShowProfileCompletion
-                ? 'Choose Username'
-                : mode === 'sign-up'
-                  ? 'Create Account'
-                  : 'Welcome Back'}
-          </p>
+          <button className="auth-primary-button" disabled={isWorking} type="submit">
+            {isWorking ? 'Creating Account...' : 'Create Account'}
+          </button>
+        </form>
+      ) : null}
 
-          <h2 className="auth-title">
-            {showVerificationForm
-              ? 'Verify your email'
-              : shouldShowProfileCompletion
-                ? 'Finish your profile'
-                : mode === 'sign-up'
-                  ? 'Create the same account your app will use.'
-                  : 'Sign in with your SOFTMAXX account.'}
-          </h2>
+      {showVerificationForm ? (
+        <form className="auth-form" onSubmit={handleVerifySubmit}>
+          <label className="auth-field">
+            <span>Email Code</span>
+            <input
+              autoComplete="one-time-code"
+              className="auth-input"
+              inputMode="numeric"
+              type="text"
+              value={verificationCode}
+              onChange={(event) => setVerificationCode(event.target.value)}
+              placeholder="123456"
+              required
+            />
+          </label>
 
-          <p className="auth-copy">
-            {showVerificationForm
-              ? 'Enter the code Clerk sent to your email.'
-              : shouldShowProfileCompletion
-                ? 'Pick the username that will appear in the community feed and inside the app.'
-                : mode === 'sign-up'
-                  ? 'Website signup and Android login use the same Clerk identity.'
-                  : 'Use email/password or Google. Your progress stays on the same account.'}
-          </p>
+          <button className="auth-primary-button" disabled={isWorking} type="submit">
+            {isWorking ? 'Verifying...' : 'Verify Email'}
+          </button>
 
-          {isDevelopmentClerkKey ? (
-            <div className="auth-dev-note">
-              This environment is still on a Clerk development key. The real live setup should use
-              a <code>pk_live_...</code> key from the same Clerk app your Android build uses.
-            </div>
+          <button
+            className="auth-secondary-button"
+            type="button"
+            onClick={() => {
+              setPendingVerification(null)
+              setVerificationCode('')
+            }}
+          >
+            Back
+          </button>
+        </form>
+      ) : null}
+
+      {shouldShowProfileCompletion ? (
+        <form className="auth-form" onSubmit={handleCompleteProfile}>
+          <label className="auth-field">
+            <span>Username</span>
+            <input
+              autoComplete="username"
+              className="auth-input"
+              type="text"
+              value={username}
+              onChange={(event) => setUsername(normalizeUsername(event.target.value))}
+              placeholder="hunter_name"
+              required
+            />
+          </label>
+
+          {usernameStatus ? (
+            <p
+              className={`auth-status-copy${
+                usernameStatus === 'Username available'
+                  ? ' auth-status-copy--success'
+                  : usernameStatus === 'Checking username...'
+                    ? ''
+                    : ' auth-status-copy--error'
+              }`}
+            >
+              {usernameStatus}
+            </p>
           ) : null}
 
-          {showPrimarySignInForm ? (
-            <form className="auth-form" onSubmit={handleSignInSubmit}>
-              <label className="auth-field">
-                <span>Email</span>
-                <input
-                  autoComplete="email"
-                  className="auth-input"
-                  type="email"
-                  value={emailAddress}
-                  onChange={(event) => setEmailAddress(event.target.value)}
-                  placeholder="your@email.com"
-                  required
-                />
-              </label>
+          <button className="auth-primary-button" disabled={isWorking} type="submit">
+            {isWorking ? 'Saving Username...' : 'Enter The System'}
+          </button>
+        </form>
+      ) : null}
 
-              <label className="auth-field">
-                <span>Password</span>
-                <input
-                  autoComplete="current-password"
-                  className="auth-input"
-                  type="password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  placeholder="••••••••"
-                  required
-                />
-              </label>
-
-              <button className="auth-primary-button" disabled={isWorking} type="submit">
-                {isWorking ? 'Signing In...' : 'Sign In'}
-              </button>
-            </form>
-          ) : null}
-
-          {showPrimarySignUpForm ? (
-            <form className="auth-form" onSubmit={handleSignUpSubmit}>
-              <label className="auth-field">
-                <span>Email</span>
-                <input
-                  autoComplete="email"
-                  className="auth-input"
-                  type="email"
-                  value={emailAddress}
-                  onChange={(event) => setEmailAddress(event.target.value)}
-                  placeholder="your@email.com"
-                  required
-                />
-              </label>
-
-              <label className="auth-field">
-                <span>Password</span>
-                <input
-                  autoComplete="new-password"
-                  className="auth-input"
-                  type="password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  placeholder="At least 6 characters"
-                  required
-                />
-              </label>
-
-              <label className="auth-field">
-                <span>Username</span>
-                <input
-                  autoComplete="username"
-                  className="auth-input"
-                  type="text"
-                  value={username}
-                  onChange={(event) => setUsername(normalizeUsername(event.target.value))}
-                  placeholder="hunter_name"
-                  required
-                />
-              </label>
-
-              {usernameStatus ? (
-                <p
-                  className={`auth-status-copy${
-                    usernameStatus === 'Username available'
-                      ? ' auth-status-copy--success'
-                      : usernameStatus === 'Checking username...'
-                        ? ''
-                        : ' auth-status-copy--error'
-                  }`}
-                >
-                  {usernameStatus}
-                </p>
-              ) : null}
-
-              <button className="auth-primary-button" disabled={isWorking} type="submit">
-                {isWorking ? 'Creating Account...' : 'Create Account'}
-              </button>
-            </form>
-          ) : null}
-
-          {showVerificationForm ? (
-            <form className="auth-form" onSubmit={handleVerifySubmit}>
-              <label className="auth-field">
-                <span>Email Code</span>
-                <input
-                  autoComplete="one-time-code"
-                  className="auth-input"
-                  inputMode="numeric"
-                  type="text"
-                  value={verificationCode}
-                  onChange={(event) => setVerificationCode(event.target.value)}
-                  placeholder="123456"
-                  required
-                />
-              </label>
-
-              <button className="auth-primary-button" disabled={isWorking} type="submit">
-                {isWorking ? 'Verifying...' : 'Verify Email'}
-              </button>
-
-              <button
-                className="auth-secondary-button"
-                type="button"
-                onClick={() => {
-                  setPendingVerification(null)
-                  setVerificationCode('')
-                }}
-              >
-                Back
-              </button>
-            </form>
-          ) : null}
-
-          {shouldShowProfileCompletion ? (
-            <form className="auth-form" onSubmit={handleCompleteProfile}>
-              <label className="auth-field">
-                <span>Username</span>
-                <input
-                  autoComplete="username"
-                  className="auth-input"
-                  type="text"
-                  value={username}
-                  onChange={(event) => setUsername(normalizeUsername(event.target.value))}
-                  placeholder="hunter_name"
-                  required
-                />
-              </label>
-
-              {usernameStatus ? (
-                <p
-                  className={`auth-status-copy${
-                    usernameStatus === 'Username available'
-                      ? ' auth-status-copy--success'
-                      : usernameStatus === 'Checking username...'
-                        ? ''
-                        : ' auth-status-copy--error'
-                  }`}
-                >
-                  {usernameStatus}
-                </p>
-              ) : null}
-
-              <button className="auth-primary-button" disabled={isWorking} type="submit">
-                {isWorking ? 'Saving Username...' : 'Enter The System'}
-              </button>
-            </form>
-          ) : null}
-
-          {!showVerificationForm && !shouldShowProfileCompletion ? (
-            <>
-              <div className="auth-divider">
-                <span>Or</span>
-              </div>
-
-              <button className="auth-google-button" type="button" onClick={handleGoogleAuth}>
-                Continue with Google
-              </button>
-            </>
-          ) : null}
-
-          {formMessage ? <p className="auth-message">{formMessage}</p> : null}
-          {formError ? <p className="auth-error">{formError}</p> : null}
-          {profileError ? <p className="auth-error">{profileError}</p> : null}
-
-          <div className="auth-footer-links">
-            <Link className="auth-secondary-link" to="/">
-              Back to home
-            </Link>
-            {isSignedIn ? (
-              <button className="auth-inline-button" type="button" onClick={handleSignOut}>
-                Sign out
-              </button>
-            ) : null}
+      {!showVerificationForm && !shouldShowProfileCompletion ? (
+        <>
+          <div className="auth-divider">
+            <span>Or</span>
           </div>
-        </section>
-      </section>
-    </main>
+
+          <button className="auth-google-button" type="button" onClick={handleGoogleAuth}>
+            Continue with Google
+          </button>
+        </>
+      ) : null}
+
+      {formMessage ? <p className="auth-message">{formMessage}</p> : null}
+      {formError ? <p className="auth-error">{formError}</p> : null}
+
+      <div className="auth-footer-links">
+        <Link className="auth-secondary-link" to="/">
+          Back to home
+        </Link>
+        {isSignedIn ? (
+          <button className="auth-inline-button" type="button" onClick={handleSignOut}>
+            Sign out
+          </button>
+        ) : null}
+      </div>
+    </section>
+  )
+}
+
+function LoadedAuthPage() {
+  const clerk = useClerk()
+  const [loadTimedOut, setLoadTimedOut] = useState(false)
+  const isStableLoaded =
+    Boolean(clerk.loaded) &&
+    clerk.status !== 'loading' &&
+    clerk.status !== 'error' &&
+    clerk.status !== 'degraded'
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setLoadTimedOut(true)
+    }, authLoadTimeoutMs)
+
+    return () => {
+      window.clearTimeout(timer)
+    }
+  }, [])
+
+  return (
+    <AuthShell>
+      <ClerkLoading>
+        {loadTimedOut ? (
+          <AuthRecoveryCard
+            sectionLabel="Sign In"
+            title="Sign-in is taking longer than expected."
+            copy="Please refresh and try again."
+            primaryLabel="Retry"
+            onPrimary={reloadPage}
+          />
+        ) : (
+          <AuthStatusCard
+            sectionLabel="Secure Sign In"
+            title="Loading secure sign-in..."
+            copy="Preparing your account."
+            centered
+            showSpinner
+          />
+        )}
+      </ClerkLoading>
+
+      <ClerkFailed>
+        <AuthRecoveryCard
+          sectionLabel="Sign In"
+          title="Sign-in is temporarily unavailable."
+          copy="Please refresh and try again."
+          primaryLabel="Retry"
+          onPrimary={reloadPage}
+        />
+      </ClerkFailed>
+
+      <ClerkDegraded>
+        <AuthRecoveryCard
+          sectionLabel="Sign In"
+          title="Sign-in is temporarily unavailable."
+          copy="Please refresh and try again."
+          primaryLabel="Retry"
+          onPrimary={reloadPage}
+        />
+      </ClerkDegraded>
+
+      <ClerkLoaded>{isStableLoaded ? <ClerkAuthPage /> : null}</ClerkLoaded>
+    </AuthShell>
   )
 }
 
@@ -842,7 +1030,7 @@ function AuthPage() {
     return <AuthUnavailablePage />
   }
 
-  return <ClerkAuthPage />
+  return <LoadedAuthPage />
 }
 
 export default AuthPage

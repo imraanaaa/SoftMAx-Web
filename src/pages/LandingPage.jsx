@@ -1,6 +1,10 @@
 import { useState } from 'react'
 import { InstagramLogoIcon, XLogoIcon } from '../components/FeedIcons.jsx'
 
+const WAITLIST_EMAIL_KEY = 'softmaxx_waitlist_email'
+const WAITLIST_SUBMITTED_KEY = 'softmaxx_waitlist_submitted'
+const LEGACY_EMAIL_KEY = 'softmaxx_email'
+
 function GoogleIcon() {
   return (
     <svg
@@ -53,39 +57,95 @@ const storeBadges = [
   },
 ]
 
+const socialBadges = [
+  {
+    label: 'X',
+    icon: <XLogoIcon className="social-link-icon" />,
+  },
+  {
+    label: 'Instagram',
+    icon: <InstagramLogoIcon className="social-link-icon" />,
+  },
+]
+
+function readStoredWaitlistEmail() {
+  if (typeof window === 'undefined') {
+    return ''
+  }
+
+  return (
+    window.localStorage.getItem(WAITLIST_EMAIL_KEY) ??
+    window.localStorage.getItem(LEGACY_EMAIL_KEY) ??
+    ''
+  )
+}
+
+function hasSubmittedWaitlist() {
+  if (typeof window === 'undefined') {
+    return false
+  }
+
+  return window.localStorage.getItem(WAITLIST_SUBMITTED_KEY) === 'true'
+}
+
 function LandingPage() {
-  const [email, setEmail] = useState(() => {
-    if (typeof window === 'undefined') {
-      return ''
-    }
+  const [email, setEmail] = useState(() => readStoredWaitlistEmail())
+  const [isSubmitted, setIsSubmitted] = useState(() => hasSubmittedWaitlist())
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [formError, setFormError] = useState('')
 
-    return window.localStorage.getItem('softmaxx_email') ?? ''
-  })
-  const [isSubmitted, setIsSubmitted] = useState(() => {
-    if (typeof window === 'undefined') {
-      return false
-    }
-
-    return Boolean(window.localStorage.getItem('softmaxx_email'))
-  })
-
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault()
 
-    const submittedEmail = email.trim()
+    if (isSubmitting) {
+      return
+    }
+
+    const submittedEmail = email.trim().toLowerCase()
 
     if (!submittedEmail) {
       return
     }
 
-    window.localStorage.setItem('softmaxx_email', submittedEmail)
-    setIsSubmitted(true)
+    setIsSubmitting(true)
+    setFormError('')
+
+    try {
+      const response = await fetch('/api/waitlist', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: submittedEmail,
+          source: 'landing_page',
+          wantsTestingAccess: true,
+        }),
+      })
+
+      const payload = await response.json().catch(() => ({}))
+
+      if (!response.ok) {
+        throw new Error(payload.error || 'We could not save your email right now.')
+      }
+
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(WAITLIST_EMAIL_KEY, submittedEmail)
+        window.localStorage.setItem(WAITLIST_SUBMITTED_KEY, 'true')
+      }
+
+      setEmail(submittedEmail)
+      setIsSubmitted(true)
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : 'We could not save your email right now.')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
     <main className="page-shell">
       <section className="container" aria-labelledby="softmaxx-title">
-        <p className="eyebrow">Training app launch</p>
         <h1 className="logo" id="softmaxx-title">
           SOFTMAXX
         </h1>
@@ -121,16 +181,23 @@ function LandingPage() {
                 autoComplete="email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
+                disabled={isSubmitting}
                 required
               />
-              <button type="submit" className="submit-btn">
-                Notify Me
+              <button type="submit" className="submit-btn" disabled={isSubmitting}>
+                {isSubmitting ? 'Saving...' : 'Notify Me'}
               </button>
             </div>
+            <p className="email-helper">Join the list for launch emails and beta testing invites.</p>
+            {formError ? (
+              <p className="form-feedback form-feedback--error" role="alert">
+                {formError}
+              </p>
+            ) : null}
           </form>
         ) : (
           <div className="confirmation show" id="confirmation" role="status">
-            You&apos;re on the list.
+            You&apos;re on the list for launch emails and beta testing invites.
           </div>
         )}
 
@@ -138,26 +205,20 @@ function LandingPage() {
           <div className="footer-site">softmaxx.org</div>
           <div className="footer-meta">
             <div className="social-links" aria-label="Social links">
-              <a
-                className="footer-link social-link"
-                href="https://x.com/softmaxx"
-                target="_blank"
-                rel="noreferrer"
-                aria-label="SOFTMAXX on X"
-              >
-                <XLogoIcon className="social-link-icon" />
-                <span className="sr-only">X</span>
-              </a>
-              <a
-                className="footer-link social-link"
-                href="https://instagram.com/softmaxx"
-                target="_blank"
-                rel="noreferrer"
-                aria-label="SOFTMAXX on Instagram"
-              >
-                <InstagramLogoIcon className="social-link-icon" />
-                <span className="sr-only">Instagram</span>
-              </a>
+              {socialBadges.map((badge) => (
+                <button
+                  className="footer-link social-link social-link--soon"
+                  key={badge.label}
+                  type="button"
+                  title="Coming Soon"
+                  disabled
+                  aria-label={`${badge.label} coming soon`}
+                >
+                  {badge.icon}
+                  <span>{badge.label}</span>
+                  <span className="social-link-status">Coming Soon</span>
+                </button>
+              ))}
             </div>
             <a className="footer-link contact-link" href="mailto:business@softmaxx.org">
               business@softmaxx.org
