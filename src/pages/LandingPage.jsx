@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { InstagramLogoIcon, XLogoIcon } from '../components/FeedIcons.jsx'
 
 const WAITLIST_EMAIL_KEY = 'softmaxx_waitlist_email'
@@ -220,9 +221,17 @@ function LandingPage() {
                 </button>
               ))}
             </div>
-            <a className="footer-link contact-link" href="mailto:business@softmaxx.org">
-              business@softmaxx.org
-            </a>
+            <div className="footer-aux-links" aria-label="Site links">
+              <Link className="footer-link contact-link" to="/policy">
+                Privacy Policy
+              </Link>
+              <Link className="footer-link contact-link" to="/terms">
+                Terms of Service
+              </Link>
+              <a className="footer-link contact-link" href="mailto:business@softmaxx.org">
+                business@softmaxx.org
+              </a>
+            </div>
           </div>
         </footer>
       </section>
