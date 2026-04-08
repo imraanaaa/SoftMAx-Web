@@ -22,5 +22,7 @@ The landing page posts waitlist signups to `/api/waitlist`.
 - Production should use Supabase via `VITE_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`.
 - Local development can use a JSON file by setting `WAITLIST_STORAGE=local_json` in `.env.local`.
 - If Supabase is not configured and the app is running locally, the API automatically falls back to `data/waitlist.local.json`.
+- `npm run dev` now supports the local waitlist API directly through the Vite dev server.
+- `npm run dev:vercel` is still available if you want to run the full Vercel-style local environment.
 
 To check locally collected emails, open `data/waitlist.local.json` after a signup is submitted.
