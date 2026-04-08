@@ -9,3 +9,25 @@ create table if not exists public.waitlist_signups (
 
 create index if not exists waitlist_signups_created_at_idx
   on public.waitlist_signups (created_at desc);
+
+grant usage on schema public to anon, authenticated, service_role;
+grant usage, select on sequence public.waitlist_signups_id_seq to anon, authenticated, service_role;
+grant insert, update on public.waitlist_signups to anon, authenticated;
+grant all privileges on public.waitlist_signups to service_role;
+
+alter table public.waitlist_signups enable row level security;
+
+drop policy if exists "waitlist_public_insert" on public.waitlist_signups;
+create policy "waitlist_public_insert"
+  on public.waitlist_signups
+  for insert
+  to anon, authenticated
+  with check (true);
+
+drop policy if exists "waitlist_public_update" on public.waitlist_signups;
+create policy "waitlist_public_update"
+  on public.waitlist_signups
+  for update
+  to anon, authenticated
+  using (true)
+  with check (true);

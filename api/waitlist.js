@@ -6,6 +6,8 @@ const LOCAL_JSON_STORAGE_MODE = 'local_json'
 const SUPABASE_STORAGE_MODE = 'supabase'
 const LOCAL_WAITLIST_DIRECTORY_URL = new URL('../data/', import.meta.url)
 const LOCAL_WAITLIST_FILE_URL = new URL('../data/waitlist.local.json', import.meta.url)
+const DEFAULT_WAITLIST_SUPABASE_URL = 'https://ljrzetknxrdigmfiubfv.supabase.co'
+const DEFAULT_WAITLIST_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_ldPmXf2qdjDXSuZnq4S1Fg_s0k8g2t5'
 
 function normalizeString(value) {
   return typeof value === 'string' ? value.trim() : ''
@@ -33,7 +35,10 @@ function readRequestBody(request) {
 
 function getSupabaseCredentials() {
   const supabaseUrl =
-    process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
+    process.env.VITE_SUPABASE_URL ??
+    process.env.SUPABASE_URL ??
+    process.env.NEXT_PUBLIC_SUPABASE_URL ??
+    DEFAULT_WAITLIST_SUPABASE_URL
   const supabaseKey =
     process.env.SUPABASE_SERVICE_ROLE_KEY ??
     process.env.SUPABASE_SERVICE_KEY ??
@@ -42,7 +47,7 @@ function getSupabaseCredentials() {
     process.env.VITE_SUPABASE_ANON_KEY ??
     process.env.SUPABASE_ANON_KEY ??
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
-    ''
+    DEFAULT_WAITLIST_SUPABASE_PUBLISHABLE_KEY
 
   return {
     supabaseUrl,
@@ -94,6 +99,31 @@ function createSupabaseHeaders(supabaseKey) {
     'Content-Type': 'application/json',
     Prefer: 'resolution=merge-duplicates,return=minimal',
   }
+}
+
+function mapSupabaseErrorMessage(errorPayload) {
+  const errorMessage =
+    normalizeString(errorPayload?.message) ||
+    normalizeString(errorPayload?.error_description) ||
+    normalizeString(errorPayload?.hint) ||
+    normalizeString(errorPayload?.details)
+
+  if (!errorMessage) {
+    return 'We could not store this email right now.'
+  }
+
+  if (errorMessage.includes(`Could not find the table 'public.${WAITLIST_TABLE}'`)) {
+    return `Supabase table public.${WAITLIST_TABLE} is missing. Run supabase/waitlist_signups.sql in your Supabase SQL Editor.`
+  }
+
+  if (
+    errorMessage.toLowerCase().includes('row-level security') ||
+    errorMessage.toLowerCase().includes('permission denied')
+  ) {
+    return `Supabase blocked waitlist writes. Run supabase/waitlist_signups.sql in your Supabase SQL Editor.`
+  }
+
+  return errorMessage
 }
 
 async function readLocalWaitlistSignups() {
@@ -175,7 +205,8 @@ async function saveWaitlistSignupToSupabase({ email, source, wantsTestingAccess 
   })
 
   if (!response.ok) {
-    throw new Error('We could not store this email right now.')
+    const errorPayload = await response.json().catch(() => null)
+    throw new Error(mapSupabaseErrorMessage(errorPayload))
   }
 }
 
