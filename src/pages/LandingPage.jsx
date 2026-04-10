@@ -148,6 +148,12 @@ function LandingPage() {
 
   return (
     <main className="page-shell">
+      <nav className="landing-nav">
+        <span className="landing-nav-brand">SOFTMAXX</span>
+        <div className="landing-nav-links">
+          <a className="landing-nav-link" href="#emailForm">Join Waitlist</a>
+        </div>
+      </nav>
       <div className="ambient-orbs" aria-hidden="true">
         <div className="ambient-orb ambient-orb--1" />
         <div className="ambient-orb ambient-orb--2" />
