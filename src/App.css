@@ -56,6 +56,19 @@
   line-height: 0.94;
   letter-spacing: 0.02em;
   padding-right: 0.08em;
+  color: #f0d080;
+  filter: drop-shadow(0 0 40px rgba(240, 208, 128, 0.18));
+}
+
+.logo-blur-text {
+  margin: 0;
+  display: flex;
+  justify-content: center;
+  font: inherit;
+  color: #f0d080;
+}
+
+.logo-blur-text span {
   background: linear-gradient(
     135deg,
     #8a6f3a 0%,
@@ -71,20 +84,6 @@
   background-clip: text;
   color: transparent;
   animation: logo-shimmer 4s ease-in-out infinite;
-  filter: drop-shadow(0 0 40px rgba(240, 208, 128, 0.18));
-}
-
-.logo-blur-text {
-  margin: 0;
-  display: flex;
-  justify-content: center;
-  font: inherit;
-  background: inherit;
-  background-size: inherit;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  animation: inherit;
 }
 
 .tagline {
