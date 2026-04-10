@@ -93,12 +93,21 @@ function shouldUseLocalJsonStorage(supabaseCredentials) {
 }
 
 function createSupabaseHeaders(supabaseKey) {
-  return {
+  const headers = {
     apikey: supabaseKey,
-    Authorization: `Bearer ${supabaseKey}`,
     'Content-Type': 'application/json',
     Prefer: 'resolution=merge-duplicates,return=minimal',
   }
+
+  const isOpaqueSupabaseKey =
+    normalizeString(supabaseKey).startsWith('sb_publishable_') ||
+    normalizeString(supabaseKey).startsWith('sb_secret_')
+
+  if (!isOpaqueSupabaseKey) {
+    headers.Authorization = `Bearer ${supabaseKey}`
+  }
+
+  return headers
 }
 
 function mapSupabaseErrorMessage(errorPayload) {

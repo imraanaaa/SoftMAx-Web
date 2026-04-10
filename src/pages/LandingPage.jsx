@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import BlurText from '../components/BlurText.jsx'
 import { InstagramLogoIcon, XLogoIcon } from '../components/FeedIcons.jsx'
 
 const WAITLIST_EMAIL_KEY = 'softmaxx_waitlist_email'
@@ -138,7 +139,8 @@ function LandingPage() {
       setEmail(submittedEmail)
       setIsSubmitted(true)
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : 'We could not save your email right now.')
+      console.error('Waitlist signup failed.', error)
+      setFormError('We could not save your email right now. Please try again in a few minutes.')
     } finally {
       setIsSubmitting(false)
     }
@@ -146,11 +148,34 @@ function LandingPage() {
 
   return (
     <main className="page-shell">
+      <div className="ambient-orbs" aria-hidden="true">
+        <div className="ambient-orb ambient-orb--1" />
+        <div className="ambient-orb ambient-orb--2" />
+        <div className="ambient-orb ambient-orb--3" />
+        <div className="ambient-orb ambient-orb--4" />
+      </div>
+      <div className="ambient-particles" aria-hidden="true">
+        <div className="ambient-particle" />
+        <div className="ambient-particle" />
+        <div className="ambient-particle" />
+        <div className="ambient-particle" />
+        <div className="ambient-particle" />
+        <div className="ambient-particle" />
+        <div className="ambient-particle" />
+        <div className="ambient-particle" />
+      </div>
       <section className="container" aria-labelledby="softmaxx-title">
         <h1 className="logo" id="softmaxx-title">
-          SOFTMAXX
+          <BlurText
+            text="SOFTMAXX"
+            delay={120}
+            animateBy="characters"
+            direction="top"
+            className="logo-blur-text"
+          />
         </h1>
         <p className="tagline">The Ascension System</p>
+        <hr className="gold-line" />
         <p className="oneliner">Level up your body. Every day. No excuses.</p>
 
         <div className="store-badges" aria-label="Store availability">
