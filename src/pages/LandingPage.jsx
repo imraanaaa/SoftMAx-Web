@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import BlurText from '../components/BlurText.jsx'
-import TargetCursor from '../components/TargetCursor.jsx'
 import { InstagramLogoIcon, XLogoIcon } from '../components/FeedIcons.jsx'
 
 const WAITLIST_EMAIL_KEY = 'softmaxx_waitlist_email'
@@ -149,11 +148,10 @@ function LandingPage() {
 
   return (
     <main className="page-shell">
-      <TargetCursor spinDuration={2} hideDefaultCursor hoverDuration={0.2} parallaxOn />
       <nav className="landing-nav">
         <span className="landing-nav-brand">SOFTMAXX</span>
         <div className="landing-nav-links">
-          <a className="landing-nav-link cursor-target" href="#emailForm">Join Waitlist</a>
+          <a className="landing-nav-link" href="#emailForm">Join Waitlist</a>
         </div>
       </nav>
       <div className="ambient-orbs" aria-hidden="true">
@@ -189,7 +187,7 @@ function LandingPage() {
         <div className="store-badges" aria-label="Store availability">
           {storeBadges.map((badge) => (
             <div
-              className="store-badge cursor-target"
+              className="store-badge"
               key={badge.label}
               aria-disabled="true"
               title="Coming Soon"
@@ -218,7 +216,7 @@ function LandingPage() {
                 disabled={isSubmitting}
                 required
               />
-              <button type="submit" className="submit-btn cursor-target" disabled={isSubmitting}>
+              <button type="submit" className="submit-btn" disabled={isSubmitting}>
                 {isSubmitting ? 'Saving...' : 'Notify Me'}
               </button>
             </div>
@@ -241,7 +239,7 @@ function LandingPage() {
             <div className="social-links" aria-label="Social links">
               {socialBadges.map((badge) => (
                 <button
-                  className="footer-link social-link social-link--soon cursor-target"
+                  className="footer-link social-link social-link--soon"
                   key={badge.label}
                   type="button"
                   title="Coming Soon"
@@ -255,13 +253,13 @@ function LandingPage() {
               ))}
             </div>
             <div className="footer-aux-links" aria-label="Site links">
-              <Link className="footer-link contact-link cursor-target" to="/policy">
+              <Link className="footer-link contact-link" to="/policy">
                 Privacy Policy
               </Link>
-              <Link className="footer-link contact-link cursor-target" to="/terms">
+              <Link className="footer-link contact-link" to="/terms">
                 Terms of Service
               </Link>
-              <a className="footer-link contact-link cursor-target" href="mailto:business@softmaxx.org">
+              <a className="footer-link contact-link" href="mailto:business@softmaxx.org">
                 business@softmaxx.org
               </a>
             </div>
