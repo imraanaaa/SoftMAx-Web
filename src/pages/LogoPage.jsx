@@ -2,29 +2,20 @@ import { Link } from 'react-router-dom'
 
 const MARK_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240">
   <defs>
-    <linearGradient id="ascend1" x1="0%" y1="100%" x2="100%" y2="0%">
+    <linearGradient id="profileGrad" x1="0%" y1="100%" x2="100%" y2="0%">
       <stop offset="0%" stop-color="#3a2a14"/>
-      <stop offset="35%" stop-color="#8a6f3a"/>
-      <stop offset="65%" stop-color="#c9a96e"/>
+      <stop offset="30%" stop-color="#8a6f3a"/>
+      <stop offset="60%" stop-color="#c9a96e"/>
+      <stop offset="85%" stop-color="#f0d080"/>
       <stop offset="100%" stop-color="#fffbe6"/>
     </linearGradient>
-    <linearGradient id="ascend2" x1="100%" y1="100%" x2="0%" y2="0%">
-      <stop offset="0%" stop-color="#3a2a14"/>
-      <stop offset="35%" stop-color="#8a6f3a"/>
-      <stop offset="65%" stop-color="#c9a96e"/>
-      <stop offset="100%" stop-color="#fffbe6"/>
-    </linearGradient>
-    <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#f0d080" stop-opacity="0.7"/>
-      <stop offset="50%" stop-color="#c9a96e" stop-opacity="0.35"/>
-      <stop offset="100%" stop-color="#8a6f3a" stop-opacity="0.5"/>
+    <linearGradient id="profileHighlight" x1="50%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fffbe6" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#fffbe6" stop-opacity="0"/>
     </linearGradient>
   </defs>
-  <circle cx="120" cy="120" r="116" fill="none" stroke="url(#ringGrad)" stroke-width="1.5"/>
-  <circle cx="120" cy="120" r="106" fill="none" stroke="url(#ringGrad)" stroke-width="0.6" opacity="0.55"/>
-  <path d="M 56 184 L 184 56" stroke="url(#ascend1)" stroke-width="22" stroke-linecap="round" fill="none"/>
-  <path d="M 184 184 L 56 56" stroke="url(#ascend2)" stroke-width="22" stroke-linecap="round" fill="none"/>
-  <circle cx="120" cy="120" r="5" fill="#fffbe6"/>
+  <path d="M 78 42 C 102 28, 142 26, 164 44 C 178 56, 184 74, 186 94 L 188 102 L 206 144 L 178 152 L 190 162 L 178 170 L 192 178 L 175 184 L 198 214 L 102 204 C 70 200, 50 178, 52 138 C 54 92, 58 56, 78 42 Z" fill="url(#profileGrad)"/>
+  <path d="M 78 42 C 102 28, 142 26, 164 44 C 178 56, 184 74, 186 94 L 188 102 L 206 144 L 178 152 L 190 162 L 178 170 L 192 178 L 175 184 L 198 214 L 102 204 C 70 200, 50 178, 52 138 C 54 92, 58 56, 78 42 Z" fill="url(#profileHighlight)"/>
 </svg>`
 
 const WORDMARK_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 160" width="720" height="160">
@@ -40,24 +31,18 @@ const WORDMARK_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 1
   <text x="360" y="118" font-family="'Bebas Neue', Impact, 'Arial Black', sans-serif" font-size="140" font-weight="400" text-anchor="middle" fill="url(#wordGrad)" letter-spacing="6">SOFTMAXX</text>
 </svg>`
 
-const LOCKUP_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 520" width="800" height="520">
+const LOCKUP_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 560" width="800" height="560">
   <defs>
-    <linearGradient id="lockAscend1" x1="0%" y1="100%" x2="100%" y2="0%">
+    <linearGradient id="lockProfile" x1="0%" y1="100%" x2="100%" y2="0%">
       <stop offset="0%" stop-color="#3a2a14"/>
-      <stop offset="35%" stop-color="#8a6f3a"/>
-      <stop offset="65%" stop-color="#c9a96e"/>
+      <stop offset="30%" stop-color="#8a6f3a"/>
+      <stop offset="60%" stop-color="#c9a96e"/>
+      <stop offset="85%" stop-color="#f0d080"/>
       <stop offset="100%" stop-color="#fffbe6"/>
     </linearGradient>
-    <linearGradient id="lockAscend2" x1="100%" y1="100%" x2="0%" y2="0%">
-      <stop offset="0%" stop-color="#3a2a14"/>
-      <stop offset="35%" stop-color="#8a6f3a"/>
-      <stop offset="65%" stop-color="#c9a96e"/>
-      <stop offset="100%" stop-color="#fffbe6"/>
-    </linearGradient>
-    <linearGradient id="lockRing" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#f0d080" stop-opacity="0.7"/>
-      <stop offset="50%" stop-color="#c9a96e" stop-opacity="0.35"/>
-      <stop offset="100%" stop-color="#8a6f3a" stop-opacity="0.5"/>
+    <linearGradient id="lockProfileHL" x1="50%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fffbe6" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#fffbe6" stop-opacity="0"/>
     </linearGradient>
     <linearGradient id="lockWord" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#8a6f3a"/>
@@ -66,18 +51,19 @@ const LOCKUP_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 520
       <stop offset="75%" stop-color="#c9a96e"/>
       <stop offset="100%" stop-color="#8a6f3a"/>
     </linearGradient>
+    <radialGradient id="lockBg" cx="50%" cy="35%" r="70%">
+      <stop offset="0%" stop-color="#1a120a"/>
+      <stop offset="100%" stop-color="#080604"/>
+    </radialGradient>
   </defs>
-  <rect width="800" height="520" fill="#080604"/>
-  <g transform="translate(280, 30)">
-    <circle cx="120" cy="120" r="116" fill="none" stroke="url(#lockRing)" stroke-width="1.5"/>
-    <circle cx="120" cy="120" r="106" fill="none" stroke="url(#lockRing)" stroke-width="0.6" opacity="0.55"/>
-    <path d="M 56 184 L 184 56" stroke="url(#lockAscend1)" stroke-width="22" stroke-linecap="round" fill="none"/>
-    <path d="M 184 184 L 56 56" stroke="url(#lockAscend2)" stroke-width="22" stroke-linecap="round" fill="none"/>
-    <circle cx="120" cy="120" r="5" fill="#fffbe6"/>
+  <rect width="800" height="560" fill="url(#lockBg)"/>
+  <g transform="translate(280, 40) scale(1)">
+    <path d="M 78 42 C 102 28, 142 26, 164 44 C 178 56, 184 74, 186 94 L 188 102 L 206 144 L 178 152 L 190 162 L 178 170 L 192 178 L 175 184 L 198 214 L 102 204 C 70 200, 50 178, 52 138 C 54 92, 58 56, 78 42 Z" fill="url(#lockProfile)"/>
+    <path d="M 78 42 C 102 28, 142 26, 164 44 C 178 56, 184 74, 186 94 L 188 102 L 206 144 L 178 152 L 190 162 L 178 170 L 192 178 L 175 184 L 198 214 L 102 204 C 70 200, 50 178, 52 138 C 54 92, 58 56, 78 42 Z" fill="url(#lockProfileHL)"/>
   </g>
-  <text x="400" y="380" font-family="'Bebas Neue', Impact, 'Arial Black', sans-serif" font-size="92" font-weight="400" text-anchor="middle" fill="url(#lockWord)" letter-spacing="5">SOFTMAXX</text>
-  <text x="400" y="430" font-family="'DM Mono', 'Courier New', monospace" font-size="14" font-weight="400" text-anchor="middle" fill="#a89070" letter-spacing="6">THE ASCENSION SYSTEM</text>
-  <text x="400" y="465" font-family="'DM Mono', 'Courier New', monospace" font-size="12" font-weight="400" text-anchor="middle" fill="#cdb188" letter-spacing="2">Level up your body. Every day. No excuses.</text>
+  <text x="400" y="400" font-family="'Bebas Neue', Impact, 'Arial Black', sans-serif" font-size="92" font-weight="400" text-anchor="middle" fill="url(#lockWord)" letter-spacing="5">SOFTMAXX</text>
+  <text x="400" y="450" font-family="'DM Mono', 'Courier New', monospace" font-size="14" font-weight="400" text-anchor="middle" fill="#a89070" letter-spacing="6">THE ASCENSION SYSTEM</text>
+  <text x="400" y="488" font-family="'DM Mono', 'Courier New', monospace" font-size="12" font-weight="400" text-anchor="middle" fill="#cdb188" letter-spacing="2">Level up your body. Every day. No excuses.</text>
 </svg>`
 
 function downloadSvg(svgString, filename) {
@@ -170,10 +156,11 @@ function LogoPage() {
 
         <header className="logo-hero">
           <p className="logo-hero-kicker">Brand Identity</p>
-          <h1 className="logo-hero-title">The Ascension Mark</h1>
+          <h1 className="logo-hero-title">The Apollo</h1>
           <p className="logo-hero-subtitle">
-            Two diagonals rising from darkness into light. The X of SoftmaXX,
-            redrawn as the climb itself.
+            A classical profile, carved in gold. The strong brow, the straight
+            Greek nose, the sharp jawline &mdash; the timeless silhouette of
+            human aesthetic ideal.
           </p>
         </header>
 
@@ -181,12 +168,13 @@ function LogoPage() {
           <div className="logo-meaning-card">
             <span className="logo-meaning-label">Meaning</span>
             <p className="logo-meaning-copy">
-              Each stroke ascends from deep bronze to bright gold &mdash; the
-              journey from where you are to your peak. The two diagonals are
-              <strong> discipline </strong>and<strong> consistency</strong>, the
-              twin pillars of ascension. They cross at the present moment: a
-              still point, a choice. The thin medallion ring frames it like a
-              seal of commitment.
+              The Apollo is the destination. For two thousand years, the
+              classical profile has been the human standard for beauty &mdash;
+              a <strong>strong brow</strong>, a <strong>Greek nose</strong>, a
+              <strong> sharp jaw</strong>, all in proportion. SOFTMAXX is the
+              system that gets you there. The gradient rises from deep bronze
+              at the base of the neck to bright gold at the crown of the head
+              &mdash; the climb made visible. Discipline, sculpted into form.
             </p>
           </div>
         </section>
